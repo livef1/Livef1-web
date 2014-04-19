@@ -30,6 +30,8 @@ import globalvar
 #from f1item import f1Item
 from f1position import f1Position
 from f1status import f1TrackStatus
+import logging
+log  = logging.getLogger('live-f1')
 
 def isprint( _str ):
     for x in _str:
@@ -81,7 +83,7 @@ class f1Board( object ):
     def updateMaxCars( self, car ):
         if car > self.__maxCars:
             self.__maxCars = car
-        globalvar.log.info( "max CARS %i" % self.__maxCars ) 
+        log.info( "max CARS %i" % self.__maxCars ) 
         # end if
         return 
        
@@ -92,7 +94,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setNumber( data, number )
             return True      
-        globalvar.log.error( "setDriverNo not a number [%s]" % ( number ))                   
+        log.error( "setDriverNo not a number [%s]" % ( number ))                   
         return False
 
     def setDriverPosition( self, car, data, number ):
@@ -102,7 +104,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPosition( data, number )
             return True 
-        globalvar.log.error( "setDriverPosition not a number [%s]" % ( number ))                          
+        log.error( "setDriverPosition not a number [%s]" % ( number ))                          
         return False
         
     def setDriverName( self, car, data, name ):
@@ -110,7 +112,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setName( data, name )
             return True
-        globalvar.log.error( "setDriverName not a printable string [%s]" % ( name ))                          
+        log.error( "setDriverName not a printable string [%s]" % ( name ))                          
         return False
     
     def setDriverInterval( self, car, data, interval ):
@@ -118,7 +120,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setInterval( data, interval )
             return True  
-        globalvar.log.error( "setDriverInterval not a number string [%s]" % ( interval ))                         
+        log.error( "setDriverInterval not a number string [%s]" % ( interval ))                         
         return False       
 
     def setDriverGap( self, car, data, gap ):
@@ -126,7 +128,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setGap( data, gap )        
             return True
-        globalvar.log.error( "setDriverGap not a number string [%s]" % ( gap ))                 
+        log.error( "setDriverGap not a number string [%s]" % ( gap ))                 
         return False                    
 
     def setDriverLaptime( self, car, data, laptime ):
@@ -134,7 +136,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLaptime( data, laptime )        
             return True
-        globalvar.log.error( "setDriverLaptime not a time string [%s]" % ( laptime ) )        
+        log.error( "setDriverLaptime not a time string [%s]" % ( laptime ) )        
         return False        
 
     def setDriverSector( self, car, data, sect, secttime ):
@@ -142,7 +144,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setSector( sect, data, secttime )        
             return True
-        globalvar.log.error( "setDriverSector not a sector string [%s]" % ( secttime ) )        
+        log.error( "setDriverSector not a sector string [%s]" % ( secttime ) )        
         return False        
         
     def setDriverPitLap( self, car, data, pit, secttime ):
@@ -155,7 +157,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPeriod( data, period, time )        
             return True
-        globalvar.log.error( "setDriverPeriod not a sector string [%s]" % ( time ) )            
+        log.error( "setDriverPeriod not a sector string [%s]" % ( time ) )            
         return False        
         
     def setDriverLap( self, car, data, lap ):
@@ -165,7 +167,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLap( data, lap )        
             return True
-        globalvar.log.error( "setDriverLap not a number [%s]" % ( lap ) )     
+        log.error( "setDriverLap not a number [%s]" % ( lap ) )     
         return False    
         
     def setFastestDriverNo( self, car, data, number ):
@@ -189,7 +191,7 @@ class f1Board( object ):
         return True      
         
     def dump( self ):
-        globalvar.log.info( "---------------------------------------------" )
+        log.info( "---------------------------------------------" )
         for item in self.__cars:
             line = "cars: nr: %-3s, pos: %-3s, name: %-13s" % ( item.getNumber().value, 
                                         item.getPosition().value, item.getName().value ) 
@@ -209,14 +211,14 @@ class f1Board( object ):
             if ( item.getPeriod( 0 ).value ):
                 line = line + ", per: (%s,%s,%s)" % ( item.getPeriod( 0 ).value,
                                             item.getPeriod( 1 ).value, item.getPeriod( 2 ).value );
-            globalvar.log.info( line )
+            log.info( line )
         # next
-        globalvar.log.info( "fastest: nr: %-3s, name: %-13s, lap: %s, time: %s" % (
+        log.info( "fastest: nr: %-3s, name: %-13s, lap: %s, time: %s" % (
                         self.__fastest.getNumber().value,
                         self.__fastest.getName().value,
                         self.__fastest.getLap().value,
                         self.__fastest.getLaptime().value ) )
-        globalvar.log.info( "---------------------------------------------" )        
+        log.info( "---------------------------------------------" )        
         return
        
                   
@@ -249,7 +251,7 @@ class f1Board( object ):
             output = output + '''UNKNOWN EVENT TYPE !!!! %i''' % ( globalvar.TrackStatus.EventType )
         #endif
         output = output + "</thead><tbody>"            
-        # globalvar.log.info( "cars : %s" % ( cnt ) ) 
+        # log.info( "cars : %s" % ( cnt ) ) 
         for pos in range( self.__maxCars ):
             for item in self.__cars:
                 if str( item.getPosition().value ) == str( pos ):

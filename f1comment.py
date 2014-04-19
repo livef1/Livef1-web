@@ -29,6 +29,8 @@
 import time
 import datetime
 import globalvar
+import logging
+log  = logging.getLogger('live-f1')
 
 class f1text( object ):
     def __init__( self, ts = 0, c = '', t = '' ):
@@ -65,8 +67,8 @@ class f1commentary( object ):
         return """<div class="%s"><table>%s</table></div>""" % ( div_tag_name, output )
         
     def append( self, new ):
-        #globalvar.log.info( "Commentary.time : %i" % ( new.timestamp ) )
-        #globalvar.log.info( "Commentary.text : %s" % ( new.text ) )
+        #log.info( "Commentary.time : %i" % ( new.timestamp ) )
+        #log.info( "Commentary.text : %s" % ( new.text ) )
         if not new.clock:
             secs = new.timestamp % 60
             mins = new.timestamp // 60
@@ -82,7 +84,7 @@ class f1commentary( object ):
     
     def dump( self ):
         for elem in self.lines:        
-            globalvar.log.info( "Commentary : %s" % ( elem.text ) )
+            log.info( "Commentary : %s" % ( elem.text ) )
         # next
         return         
         

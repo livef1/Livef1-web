@@ -26,6 +26,8 @@
 #   For showing the way of program logic.   
 #
 import globalvar
+import logging
+log  = logging.getLogger('live-f1')
 
 class f1TrackStatus(object):
     RACE_EVENT             = 1
@@ -73,7 +75,7 @@ class f1TrackStatus(object):
         
     def __setStatus( self, val ):
         if ( val < self.GREEN_FLAG or val > self.LAST_FLAG ):
-            globalvar.log.warning( "Invalid status set %i" % val )
+            log.warning( "Invalid status set %i" % val )
             return            
         #endif
         self.__Status = val
@@ -131,7 +133,7 @@ class f1TrackStatus(object):
         
     def __setEvent( self, val ):
         if ( val < self.RACE_EVENT or val > self.QUALIFYING_EVENT ):
-            globalvar.log.warning( "Invalid event set %i" % val )
+            log.warning( "Invalid event set %i" % val )
             return        
         self.__Event = val
         return
@@ -152,7 +154,7 @@ class f1TrackStatus(object):
         
     def __setFlag( self, val ):
         if ( val < self.GREEN_FLAG or val > self.LAST_FLAG ):
-            globalvar.log.warning( "Invalid flag set %i" % val )
+            log.warning( "Invalid flag set %i" % val )
             return            
         self.__Flag = val
         return

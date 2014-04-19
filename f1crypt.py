@@ -19,25 +19,28 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 #   
+import logging
+log  = logging.getLogger('live-f1')
+
 class f1Crypto( object ):
     __seed = 1431655765
     def __init__( self, app, newKey = 0 ):
         self.__theApp = app
         self.__key  = newKey
         self.__mask = self.__seed
-        self.__theApp.debug( "f1Crypto loaded with key %X" % ( newKey ) )
+        log.debug( "f1Crypto loaded with key %X" % ( newKey ) )
         return
     # end def
     
     def setKey( self, newKey ): 
         self.__key    = newKey
         self.__mask   = self.__seed
-        self.__theApp.debug( "f1Crypto reset with key %X" % ( newKey ) )
+        log.debug( "f1Crypto reset with key %X" % ( newKey ) )
     # end def   
 
     def reset( self ): 
         self.__mask = self.__seed
-        self.__theApp.debug( "f1Crypto reset()" )
+        log.debug( "f1Crypto reset()" )
         return
     # end def
     

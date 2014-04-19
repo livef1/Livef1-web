@@ -26,33 +26,28 @@
 #
 #   For showing the way of program logic.   
 #
-#from root.roothandler import Root
 import globalvar
 import os
 import thread
 import logging
+from logging import handlers
 import cherrypy
 import f1reader
-
 from f1status import f1TrackStatus
+
+log  = logging.getLogger('live-f1')
 
 class f1live( object ):
     def __init__( self ):
-        self.__log  = logging.getLogger('live-f1')
-        globalvar.log = self.__log
-  
+        file_log_handler = handlers.RotatingFileHandler('logfile.log', maxBytes=1024*1024*10, backupCount=10 )
         file_log_handler = logging.FileHandler('logfile.log')
-        self.__log.addHandler( file_log_handler )
-
-        #  stderr_log_handler = logging.StreamHandler()
-        #  self.__log.addHandler( stderr_log_handler )
+        log.addHandler( file_log_handler )
 
         # nice output format
         formatter = logging.Formatter( '%(asctime)s - %(module)s - %(levelname)s - %(message)s' )
         file_log_handler.setFormatter( formatter )
-        #   stderr_log_handler.setFormatter( formatter )
-        self.__log.setLevel( 10 )    
-        self.__log.info( 'Starting the application' )
+        log.setLevel( 10 )    
+        log.info( 'Starting the application' )
         return
     # end constructor    
     
@@ -139,7 +134,7 @@ class f1live( object ):
             # endif                
             cnt = cnt + 1
             if ( cnt == 16 ):
-                self.__log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )
+                log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )
                 hexstr  = ''
                 ascii   = ''
                 cnt     = 0
@@ -147,7 +142,7 @@ class f1live( object ):
             # endif
         # next
         if 0:
-            self.__log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )                            
+            log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )                            
         # endif
         return 
     # end def 
@@ -160,7 +155,15 @@ globalvar.theApp    = f1live()
 
 globalvar.TrackStatus = f1TrackStatus()
 
-thread.start_new( f1reader.Reader, ( "Reader", 5 ) )
+username		= "mbertens@xs4all.nl"
+password		= "5701mb"
+
+
+
+
+
+
+thread.start_new( f1reader.Reader, ( username, password ) )
 #f1reader.Reader( 'test', 5 )
 
 cherrypy.quickstart( globalvar.theApp, '/', config = os.path.join( _curdir, 'livef1.conf' ) )

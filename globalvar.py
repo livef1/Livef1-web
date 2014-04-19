@@ -25,7 +25,6 @@
 #
 #   For showing the way of program logic.   
 #
-#log         = None
 commentary  = None
 board       = None
 TrackStatus = None

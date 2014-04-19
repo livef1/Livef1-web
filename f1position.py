@@ -28,6 +28,8 @@
 import globalvar
 from f1item import f1Item
 from f1status import f1TrackStatus
+import logging
+log  = logging.getLogger('live-f1')
 
 class f1Position( object ):
     def __init__( self ):

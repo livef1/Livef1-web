@@ -29,29 +29,28 @@ import globalvar
 import time
 import f1logger
 import f1stream
-
-username		= "mbertens@xs4all.nl"
-password		= "5701mb"
+import logging
+log  = logging.getLogger('live-f1')
 
 def CheckIt():
     #
     #   This is just a dummy to keep the loop processing
     #
-    #globalvar.log.info( 'Waiting ...' )
+    #log.info( 'Waiting ...' )
     return
 
-def Reader( name, index ):
-    globalvar.theApp.info( '%s thread starting ...' % ( name ) )
+def Reader( username, password ):
+    log.info( 'Live F1 reader thread starting ...' )
     run = 1
     tries = 0
     while run:
         Sess = f1stream.f1session( globalvar.theApp, username, password )            
         key_val = Sess.obtain_auth_cookie()
         if not key_val:
-            globalvar.theApp.warning( "Error getting cookie, try %i of 5" % tries )
+            log.warning( "Error getting cookie, try %i of 5" % tries )
             tries = tries + 1
         else:
-            globalvar.theApp.info( "Got authentication cookie: %s" % ( key_val ) )
+            log.info( "Got authentication cookie: %s" % ( key_val ) )
             run = 1
             ctries = 0
         # end if            
@@ -69,20 +68,20 @@ def Reader( name, index ):
                 run = 1  
             else:   
                 # stop the thread for now
-                globalvar.theApp.error( "Error %s ...." % Sess.error )
+                log.error( "Error %s ...." % Sess.error )
                 if ctries > 5:
-                    globalvar.theApp.error( "Error connecting, try %i of 5" % ctries )
+                    log.error( "Error connecting, try %i of 5" % ctries )
                     run = 0
                 else:
                     ctries += 1    
             # endif  
         # end while
         if tries > 5:
-            globalvar.theApp.error( "Error getting cookie, try %i of 5" % tries )
+            log.error( "Error getting cookie, try %i of 5" % tries )
             run = 0
         #endif
     # end while
-    globalvar.theApp.error( "Exiting the THREAD" )
+    log.error( "Exiting the THREAD" )
     exit()    
     return
     

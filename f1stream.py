@@ -37,6 +37,8 @@ import globalvar
 from f1comment import f1commentary, f1text
 from f1drivers import f1Board
 from f1crypt import f1Crypto 
+import logging
+log  = logging.getLogger('live-f1')
 
 CRYPTO_SEED         = 0x55555555
 LOGIN_URL	    	= "/reg/login"
@@ -124,7 +126,7 @@ class f1packet( object ):
         #if len( block ) < l + 2:
         #    return block 
         # end if
-        self.__theApp.debug( "f1packet: (%X,%X), id %i, x: %i, c: %i, l: %i, v: %s" % ( b0, b1, id, x, c, l, v ) )        
+        log.debug( "f1packet: (%X,%X), id %i, x: %i, c: %i, l: %i, v: %s" % ( b0, b1, id, x, c, l, v ) )        
         
         if self.car == 0:
             if self.type in [ SYS.EVENT_ID, SYS.KEY_FRAME, SYS.VALID_MARKER, SYS.WEATHER, SYS.TRACK_STATUS ]:
@@ -168,9 +170,9 @@ class f1packet( object ):
         if len( self.payload ) > 0 and decrypt:
             # self.decrypt()
             self.payload = self.crypto.decryptBlock( self.payload )        
-            self.__theApp.debug( "f1packet: decrypted type %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
+            log.debug( "f1packet: decrypted type %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
         else:
-            self.__theApp.debug( "f1packet: type: %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
+            log.debug( "f1packet: type: %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
         # endif                    
         return block[ self.length + 2: len( block ) ] 
     # end def 
@@ -214,7 +216,7 @@ class f1session( object ):
     def __init__( self, theApp, user, passwd ):
         self.__username         = user
         self.__password         = passwd
-        self.__thaApp           = theApp
+        self.__theApp           = theApp
         self.packet             = f1packet( theApp )
         self.__http             = httplib2.Http()
         self.__cookie           = None
@@ -235,17 +237,17 @@ class f1session( object ):
         headers = { "Content-Type": "application/x-www-form-urlencoded" }
         body = { 'email': self.__username, 'password': self.__password }
         url = 'http://%s:%s%s' % ( self.auth_http_host, self.auth_http_port, LOGIN_URL )
-        globalvar.theApp.info( "REQ: %s  %s" % ( url, urllib.urlencode( body ) ) ) 
+        log.info( "REQ: %s  %s" % ( url, urllib.urlencode( body ) ) ) 
         response, content = self.__http.request( url, 'POST', headers=headers, body=urllib.urlencode(body))
-        globalvar.theApp.debug( "RESP: %s" % ( response ) )
-        # globalvar.theApp.debug( "DATA: %s" % ( content ) )
+        log.debug( "RESP: %s" % ( response ) )
+        # log.debug( "DATA: %s" % ( content ) )
         if response[ 'status' ] == '200' or response[ 'status' ] == '302':
             self.__cookie = response[ 'set-cookie' ]
             C = Cookie.BaseCookie( self.__cookie )
             for k, v in C.items():
                 if ( k == "USER" ): 
                     self.__COOKIE_VALUE = v.value 
-            globalvar.theApp.debug( "Cookie.USER = %s" % ( self.__COOKIE_VALUE ) )
+            log.debug( "Cookie.USER = %s" % ( self.__COOKIE_VALUE ) )
             return self.__COOKIE_VALUE
         # endif
         return ""
@@ -256,29 +258,29 @@ class f1session( object ):
             url = "http://%s:%i%s_%05d.bin" % ( self.auth_http_host, self.auth_http_port, KEYFRAME_URL_PREFIX, self.frame )
         else:
             url = 'http://%s:%s%s.bin' % ( self.auth_http_host, self.auth_http_port, KEYFRAME_URL_PREFIX )
-        globalvar.log.info( "REQ: %s" % ( url ) ) 
+        log.info( "REQ: %s" % ( url ) ) 
         response, content = self.__http.request( url, 'GET' )
-        globalvar.log.debug( "RESP: %s" % ( response ) )
+        log.debug( "RESP: %s" % ( response ) )
         if response[ 'status' ] == '200':
-            globalvar.theApp.hexDebug( "KEYFRAME", content )
+            self.__theApp.hexDebug( "KEYFRAME", content )
             return content
         return "" 
 
     def obtain_decryption_key( self ):
         url = "http://%s:%s%s%u.asp?auth=%s" % ( self.auth_http_host, self.auth_http_port, KEY_URL_BASE, self.eventid, self.__COOKIE_VALUE )
         response, content = self.__http.request( url, 'GET' )
-        globalvar.theApp.debug( "RESP: %s" % ( response ) )
-        globalvar.theApp.debug( "DATA: %s" % ( content ) )
+        log.debug( "RESP: %s" % ( response ) )
+        log.debug( "DATA: %s" % ( content ) )
         return content
         
     def open( self ):
-        globalvar.theApp.debug( "Connecting: %s:%s" % ( self.data_host, self.data_port ) )
+        log.debug( "Connecting: %s:%s" % ( self.data_host, self.data_port ) )
         addrlist = socket.getaddrinfo( self.data_host, self.data_port, 0, 0, socket.SOL_TCP )
         for addr in addrlist:
             self.sock = socket.socket( addr[0], addr[1], addr[2] );
             if ( self.sock ):
                 self.error = self.sock.connect_ex( addr[ 4 ] );
-                globalvar.theApp.debug( "open.connect_ex: %s" % ( self.error ) )
+                log.debug( "open.connect_ex: %s" % ( self.error ) )
                 self.__decryption_error = False
                 if ( self.error == 0 ):
                     self.pollCount = 0
@@ -307,7 +309,7 @@ class f1session( object ):
                     self.__timer = 0
                     if self.__decryption_error:
                         poller.unregister( self.sock )
-                        globalvar.log.info( "Close : Due to descryption error" )
+                        log.info( "Close : Due to descryption error" )
                         self.close()
                         return False
                     self.pollCount = 0
@@ -315,7 +317,7 @@ class f1session( object ):
                 else:
                     # Interpret empty result as closed connection
                     poller.unregister( self.sock )
-                    globalvar.log.debug( "Close : #1" )
+                    log.debug( "Close : #1" )
                     self.close()
                     self.error = -1
                     return False   
@@ -323,19 +325,19 @@ class f1session( object ):
                 # Client hung up
                 poller.unregister( self.sock )
                 self.close()
-                globalvar.log.debug( "Close : #2" )
+                log.debug( "Close : #2" )
             elif flag & select.POLLERR:
                 # Error
                 poller.unregister( self.sock )
                 self.close()
-                globalvar.log.debug( "Close : #3" )
+                log.debug( "Close : #3" )
             else:
                 # something else just ignore
-                globalvar.log.debug( "Else : #1" )
+                log.debug( "Else : #1" )
             # endif
         # next    
         self.__timer = self.__timer + 1
-        #globalvar.log.debug( "Timeout : %i" % self.__timer )
+        #log.debug( "Timeout : %i" % self.__timer )
         if self.__timer < 10:
             return True
         # endif
@@ -349,7 +351,7 @@ class f1session( object ):
             return False
         # endif
         length = self.sock.send( b )
-        globalvar.log.debug( "Send : %s, length : %i, pollCount %i" % ( b, length, self.pollCount ) )
+        log.debug( "Send : %s, length : %i, pollCount %i" % ( b, length, self.pollCount ) )
         if length > 0:
             # Reset the timer value.
             self.__timer = 0
@@ -363,20 +365,20 @@ class f1session( object ):
         if self.packet.length > 0:                     
             event_sub_type = self.packet.payload[ 0 ] 
         if event_sub_type == 2:
-            globalvar.log.info( "SYS.EVENT_ID : (str) %s" % ( self.packet.payload2str( 1 ) ) )
+            log.info( "SYS.EVENT_ID : (str) %s" % ( self.packet.payload2str( 1 ) ) )
             if self.packet.payload[ 1 ] == 0x5F:
-                globalvar.log.info( "SYS.EVENT_ID : (date) %s" % ( self.packet.payload2str( 2 ) ) )
+                log.info( "SYS.EVENT_ID : (date) %s" % ( self.packet.payload2str( 2 ) ) )
             else:
                 self.eventid        = int( self.packet.payload2str( 1 ) )
                 globalvar.TrackStatus.reset()                    
                 globalvar.TrackStatus.Event	= self.packet.data
                 globalvar.TrackStatus.EventId  = self.eventid
                 globalvar.commentary.reset()
-                globalvar.log.info( "SYS.EVENT_ID : %i" % ( self.eventid ) )
+                log.info( "SYS.EVENT_ID : %i" % ( self.eventid ) )
                 self.packet.crypto.setKey( int( self.obtain_decryption_key(), 16 ) )                        
             # endif
         else:
-            globalvar.log.error( "SYS.EVENT_ID unknown sub type %i" % ( event_sub_type ) )
+            log.error( "SYS.EVENT_ID unknown sub type %i" % ( event_sub_type ) )
         # endif
         return  
     
@@ -392,13 +394,13 @@ class f1session( object ):
         self.packet.crypto.reset() 
         # endif
         self.frame = number
-        globalvar.log.info( "SYS.KEY_FRAME : %i (%X), last : %i (%X), block-length %i" % ( self.frame, self.frame, last, last, len( self.__block ) ) )
+        log.info( "SYS.KEY_FRAME : %i (%X), last : %i (%X), block-length %i" % ( self.frame, self.frame, last, last, len( self.__block ) ) )
         return        
     
     def HandleSysComment( self ):
         clock = ""
         text = self.packet.payload2str( 2 )
-        globalvar.log.info( "System.Commentary : %s" % ( text ) )
+        log.info( "System.Commentary : %s" % ( text ) )
         if len( text ) > 8:
             if text[ 2 ] == ':': 
                 if text[ 5 : 8 ] == ' - ':
@@ -427,16 +429,16 @@ class f1session( object ):
     def HandleSysSpeed( self ):
         number = self.packet.payload[ 0 ]
         if number == SYS_SPEED.FL_CAR:
-            globalvar.log.info( "System.Speed, car number : %s" % ( self.packet.payload2str( 1 ) ) )
+            log.info( "System.Speed, car number : %s" % ( self.packet.payload2str( 1 ) ) )
             globalvar.board.setFastestDriverNo( self.packet.car, self.packet.data, self.packet.payload2str( 1 ) )
         elif number == SYS_SPEED.FL_DRIVER:
-            globalvar.log.info( "System.Speed, driver : %s" % ( self.packet.payload2str( 1 ) ) )
+            log.info( "System.Speed, driver : %s" % ( self.packet.payload2str( 1 ) ) )
             globalvar.board.setFastestDriverName( self.packet.car, self.packet.data, self.packet.payload2str( 1 ) )
         elif number == SYS_SPEED.FL_TIME:
-            globalvar.log.info( "System.Speed, lap time : %s" % ( self.packet.payload2str( 1 ) ) )
+            log.info( "System.Speed, lap time : %s" % ( self.packet.payload2str( 1 ) ) )
             globalvar.board.setFastestDriverLaptime( self.packet.car, self.packet.data, self.packet.payload2str( 1 ) )
         elif number == SYS_SPEED.FL_LAP:
-            globalvar.log.info( "System.Speed, lap number : %s" % ( self.packet.payload2str( 1 ) ) )
+            log.info( "System.Speed, lap number : %s" % ( self.packet.payload2str( 1 ) ) )
             globalvar.board.setFastestDriverLap( self.packet.car, self.packet.data, self.packet.payload2str( 1 ) )
         else:
             globalvar.log.error( "System.Speed (%X) unhandled : %s" % ( number, self.packet.payload2hexstr( 1 ) ) )
@@ -444,17 +446,17 @@ class f1session( object ):
         return        
     
     def HandleSysTrack( self ):
-        globalvar.log.info( "System.TrackStatus : data = %i payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
+        log.info( "System.TrackStatus : data = %i payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
         if self.packet.data == 0x01:
             globalvar.TrackStatus.Status = self.packet.payload[ 0 ] - 0x30
         elif self.packet.data == 0x02:
-            globalvar.log.warning( "System.TrackStatus type = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
+            log.warning( "System.TrackStatus type = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
         elif self.packet.data == 0x03:
-            globalvar.log.warning( "System.TrackStatus type = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
+            log.warning( "System.TrackStatus type = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
         elif self.packet.data == 0x04:
-            globalvar.log.warning( "System.TrackStatus type = %i (?? session-finished ?? ) = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
+            log.warning( "System.TrackStatus type = %i (?? session-finished ?? ) = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
         else:
-            globalvar.log.error( "System.TrackStatus unknown : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
+            log.error( "System.TrackStatus unknown : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )    
         # endif                    
         return
 
@@ -467,7 +469,7 @@ class f1session( object ):
             hours = mins // 60
             mins = mins % 60
         # endif
-        globalvar.log.info( "System.TimeStamp : %i = %02i:%02i:%02i" % ( 
+        log.info( "System.TimeStamp : %i = %02i:%02i:%02i" % ( 
                 self.__timestamp, hours, mins, secs ) )
         return
     #
@@ -479,34 +481,34 @@ class f1session( object ):
         elif self.packet.type == SYS.KEY_FRAME:
             self.HandleSysKeyFrame()      
         elif self.packet.type == SYS.VALID_MARKER:
-            globalvar.log.info( "System.ValidMarker : data = %i, payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
+            log.info( "System.ValidMarker : data = %i, payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
         elif self.packet.type == SYS.COMMENTARY:
             self.HandleSysComment()                   
         elif self.packet.type == SYS.REFRESH_RATE:
             self.__refreshRate = self.packet.payload2int()            
-            globalvar.log.warning( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
+            log.warning( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
             # values: 96, 608, 8768            
             if self.__refreshRate > 608:
                 # self.__refreshRate  = 100
-                globalvar.log.error( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
+                log.error( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
                
             # end if    
         elif self.packet.type == SYS.NOTICE:
-            globalvar.log.info( "System.Notice : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
+            log.info( "System.Notice : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
             globalvar.TrackStatus.Notice = self.packet.payload2str()
         elif self.packet.type == SYS.TIMESTAMP:
             self.HandleSysTimeStamp()
         elif self.packet.type == SYS.WEATHER:
-            globalvar.log.info( "System.Weather : %i" % ( self.packet.car ) )
+            log.info( "System.Weather : %i" % ( self.packet.car ) )
         elif self.packet.type == SYS.SPEED:
             self.HandleSysSpeed()
         elif self.packet.type == SYS.TRACK_STATUS:
             self.HandleSysTrack()
         elif self.packet.type == SYS.COPYRIGHT:
-            globalvar.log.info( "System.Copyright : %i = %s" % ( self.packet.car, self.packet.payload2str() ) )
+            log.info( "System.Copyright : %i = %s" % ( self.packet.car, self.packet.payload2str() ) )
             globalvar.TrackStatus.Copyright = self.packet.payload2str()
         else:
-            globalvar.log.error( "Unknown SYSTEM packet data : %s" % ( self.packet.payload2hexstr() ) )
+            log.error( "Unknown SYSTEM packet data : %s" % ( self.packet.payload2hexstr() ) )
         # endif
         return
             
@@ -515,7 +517,7 @@ class f1session( object ):
     #
     def HandleCarPacket( self ):
         event = globalvar.TrackStatus.Event
-        # globalvar.log.info( "event %i %s" % ( event, {1:"Race",2:"Practice",3:"Qualifiying"}[ event ] ) )
+        # log.info( "event %i %s" % ( event, {1:"Race",2:"Practice",3:"Qualifiying"}[ event ] ) )
         text = self.packet.payload2str()
         #
         # car packet
@@ -524,123 +526,123 @@ class f1session( object ):
             #
             #  pos update
             #
-            globalvar.log.info( "Position update car: %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Position update car: %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             
         elif self.packet.type == CAR.RACE_POSITION[ event ]:
             #
             #
             #
-            globalvar.log.info( "Race position car: %i, data: %i, position: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Race position car: %i, data: %i, position: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPosition( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.RACE_DRIVER[ event ]:
             #
             #
             #
-            globalvar.log.info( "Driver name car: %i, data: %i, name: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Driver name car: %i, data: %i, name: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverName( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.DRIVER_NUMBER[ event ]:
             #
             #
             #
-            globalvar.log.info( "Driver number car: %i, data: %i, number: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Driver number car: %i, data: %i, number: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverNo( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.GAP[ event ]:
             #
             #
             #
-            globalvar.log.info( "Gap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Gap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverGap( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.LAP[ event ]:
             #
             #
             #
-            globalvar.log.info( "Lap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Lap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverLap( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.LAP_TIME[ event ]:
             #
             #
             #
-            globalvar.log.info( "Laptime: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Laptime: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverLaptime( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.INTERVAL[ event ]:
             #
             #
             #
-            globalvar.log.info( "Interval: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Interval: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverInterval( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.SECTOR_1[ event ]:
             #
             #
             #
-            globalvar.log.info( "Sector-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Sector-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 0, text )
 
         elif self.packet.type == CAR.SECTOR_2[ event ]:
             #
             #
             #
-            globalvar.log.info( "Sector-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Sector-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, text )
         elif self.packet.type == CAR.SECTOR_3[ event ]:
             #
             #
             #
-            globalvar.log.info( "Sector-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Sector-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, text )
 
         elif self.packet.type == CAR.PIT_LAP_1[ event ]:
             #
             #
             #
-            globalvar.log.info( "Pit-lap-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Pit-lap-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 0, text )
 
         elif self.packet.type == CAR.PIT_LAP_2[ event ]:
             #
             #
             #
-            globalvar.log.info( "Pit-lap-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Pit-lap-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 1, text )
             
         elif self.packet.type == CAR.PERIOD_1[ event ]:
             #
             #
             #
-            globalvar.log.info( "Period-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Period-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 0, text )
             
         elif self.packet.type == CAR.PERIOD_2[ event ]:
             #
             #
             #
-            globalvar.log.info( "Period-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Period-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 1, text )
                                             
         elif self.packet.type == CAR.PERIOD_3[ event ]:
             #
             #
             #
-            globalvar.log.info( "Period-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.info( "Period-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 2, text )
             
         elif self.packet.type == CAR.POSITION_HISTORY:  # pos history 
             #
             #
             #
-            globalvar.log.warning( "Position history car: %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
+            log.warning( "Position history car: %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
 
         else:
             #
             #
             #
-            globalvar.log.error( "Unknown CAR packet data : %s" % ( self.packet.payload2hexstr() ) )
+            log.error( "Unknown CAR packet data : %s" % ( self.packet.payload2hexstr() ) )
         # endif
         if self.__decryption_error:        
-            globalvar.log.error( "DECRYPTION ERROR !!!!!!!!!!!!!" )
+            log.error( "DECRYPTION ERROR !!!!!!!!!!!!!" )
             # Clear the data, we need to re-load the stream
             self.__block = ""
         # endif     
@@ -659,7 +661,7 @@ class f1session( object ):
                         break 
                     # endif
                 # next
-                globalvar.log.debug( "Stream data: {%s}" % hexstr )
+                log.debug( "Stream data: {%s}" % hexstr )
             # endif                
             self.__block = self.packet.set( self.__block )
             if self.packet.length > 2 and self.packet.car == 0 and self.packet.type == SYS.COMMENTARY:             

@@ -25,6 +25,9 @@
 #
 #   For showing the way of program logic.   
 #
+import logging
+log  = logging.getLogger('live-f1')
+
 class f1Item( object ):
     def __init__( self ):
         self.__data = 0
