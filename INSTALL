@@ -1,0 +1,21 @@
+Livef1-web needs Python version 2.7.x and the following modules;
+* httplib2
+* urllib
+* urllib2
+* Cookie
+* cherrypy
+
+To get the source from git
+
+    git clone https://github.com/livef1/Livef1-web
+
+Running the program
+
+    correct the livef1.conf with the correct location of the files.
+    and run python ./livef1.py
+
+    open a browser and type http://localhost:8080
+
+
+    
+
