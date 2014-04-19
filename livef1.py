@@ -30,6 +30,7 @@ import globalvar
 import os
 import thread
 import logging
+import ConfigParser
 from logging import handlers
 import cherrypy
 import f1reader
@@ -39,8 +40,13 @@ log  = logging.getLogger('live-f1')
 
 class f1live( object ):
     def __init__( self ):
-        file_log_handler = handlers.RotatingFileHandler('logfile.log', maxBytes=1024*1024*10, backupCount=10 )
-        file_log_handler = logging.FileHandler('logfile.log')
+        self.config = ConfigParser.RawConfigParser()
+        self.readConfig()
+        logfilename = self.config.get( 'log', 'file' )
+        logfilesize = self.config.getint( 'log', 'logsize' )
+        logbackups  = self.config.getint( 'log', 'logbackup' )
+
+        file_log_handler = handlers.RotatingFileHandler( logfilename, logfilesize, logbackups )
         log.addHandler( file_log_handler )
 
         # nice output format
@@ -48,8 +54,18 @@ class f1live( object ):
         file_log_handler.setFormatter( formatter )
         log.setLevel( 10 )    
         log.info( 'Starting the application' )
+        thread.start_new( f1reader.Reader, ( self, ) )
+
         return
     # end constructor    
+    
+    def readConfig( self ):
+        self.config.read( 'userf1.conf' )
+        return
+            
+    def writeConfig( self ):
+        self.config.write( 'userf1.conf' )
+        return
     
     def header( self, title ):
         return ( """<!DOCTYPE html><html><head><title>Live F1 timing</title>
@@ -148,22 +164,9 @@ class f1live( object ):
     # end def 
 #end class
     
-# f1logger.StartLogger()
 # cherrypy needs an absolute path to deal with static data
-_curdir = os.path.join( os.getcwd(), os.path.dirname( __file__ ) )
 globalvar.theApp    = f1live()
-
 globalvar.TrackStatus = f1TrackStatus()
 
-username		= "mbertens@xs4all.nl"
-password		= "5701mb"
-
-
-
-
-
-
-thread.start_new( f1reader.Reader, ( username, password ) )
-#f1reader.Reader( 'test', 5 )
-
-cherrypy.quickstart( globalvar.theApp, '/', config = os.path.join( _curdir, 'livef1.conf' ) )
+cherrypy.quickstart( globalvar.theApp, '/', config = os.path.join( os.path.join( os.getcwd(), 
+                                            os.path.dirname( __file__ ) ), 'livef1.conf' ) )

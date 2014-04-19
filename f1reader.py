@@ -39,47 +39,58 @@ def CheckIt():
     #log.info( 'Waiting ...' )
     return
 
-def Reader( username, password ):
-    log.info( 'Live F1 reader thread starting ...' )
-    run = 1
-    tries = 0
+def ReaderSession( Sess ):
+    run     = 1
+    tries   = 0
     while run:
-        Sess = f1stream.f1session( globalvar.theApp, username, password )            
+        Sess.parse( Sess.obtain_key_frame() )
+        if ( Sess.open() ):
+            while ( Sess.read() > 0 ):
+                CheckIt()
+                continue
+            # end while
+            #
+            #   Posible to get here from a decryption error, so just recycle the session 
+            Sess.close()
+            tries = 0
+        else:   
+            # stop the thread for now
+            log.error( "Error %s ...." % Sess.error )
+            if tries > 5:
+                log.error( "Error connecting, try %i of 5" % ctries )
+                run = 0
+            else:
+                tries += 1
+            # end if     
+        # end if  
+    # end while
+    return
+
+def Reader( theApp ):
+    log.info( 'Live F1 reader thread starting ...' )
+    run         = 1
+    tries       = 0
+    while run:
+        crun        = 0
+        username    = theApp.config.get( 'registration', 'user' )
+        passwd      = theApp.config.get( 'registration', 'passwd' )
+        log.debug( "user = %s, passwd = %s" % ( username, passwd ) )
+        Sess = f1stream.f1session( globalvar.theApp, username, passwd )            
         key_val = Sess.obtain_auth_cookie()
         if not key_val:
             log.warning( "Error getting cookie, try %i of 5" % tries )
-            tries = tries + 1
+            tries   += 1
         else:
             log.info( "Got authentication cookie: %s" % ( key_val ) )
-            run = 1
-            ctries = 0
-        # end if            
-        while run and key_val:
-            Sess.parse( Sess.obtain_key_frame() )
-            if ( Sess.open() ):
-                while ( Sess.read() > 0 ):
-                    CheckIt()
-                # end while
-                #
-                #   Posible to get here from a decryption error, so just recycle the session 
-                Sess.close()
-                tries = 0
-                ctries = 0
-                run = 1  
-            else:   
-                # stop the thread for now
-                log.error( "Error %s ...." % Sess.error )
-                if ctries > 5:
-                    log.error( "Error connecting, try %i of 5" % ctries )
-                    run = 0
-                else:
-                    ctries += 1    
-            # endif  
-        # end while
+            crun    = 1
+            ctries  = 0
+        # end if   
+        if key_val:               
+            ReaderSession( Sess )
         if tries > 5:
             log.error( "Error getting cookie, try %i of 5" % tries )
             run = 0
-        #endif
+        #end if
     # end while
     log.error( "Exiting the THREAD" )
     exit()    
