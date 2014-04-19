@@ -1,0 +1,198 @@
+Data Stream
+-----------
+
+The primary source of the live timing feed information is the data
+stream itself, available by connecting to live-timing.formula1.com on
+port 4321.
+
+The basic protocol is a little strange, rather than the server sending
+data whenever it has any and relying on TCP to keep the connection
+open, it instead sends bursts of data whenever the client pings it.
+
+  --> (connect)
+  <-- (initial data burst)
+  --> 0x10
+  <-- (further data burst)
+  --> 0x10
+
+We therefore take care to ensure that if more than a second passes
+without any activity on the socket, we send the 0x10 byte to see if we
+get any more data.
+
+So now onto the data format itself, as one might expect from a
+protocol which hasn't seen the love of a Unix hand, it's binary with
+some pretty fun bit mapping going on.
+
+Roughly it's a sequence of packets, each one with a two-byte header
+that identifies the type of packet and how much data is to follow it.
+Unfortunately to my eye it looks like the header started out as a
+16-bit int on the server and got output little-endian down the wire.
+
+This means the header makes more sense if you flip the first two bytes
+around, so for the sake of example, that's what I've done in the
+following illustration.
+
+    _p[1]            _p[0]
+    [ | | | | | | | ][ | | | | | | | ]
+     +-data------+ +-type-+ +-carid-+
+
+Notice that the most significant bit of the type field is the least
+significant bit of the second byte, and that type's three least
+significant bits are the three most significant bits of the first
+byte.
+
+The type of a packet can be uniquely identified by the pairing of the
+type field and carid field, when the carid is 0 the types appear to be
+largely system messages, otherwise when non-zero they are always
+car-related.
+
+The data field varies according to the type of the packet, but can be
+pretty much defined into three categories.
+
+The first are the "special" packets which use the data field as a
+handy place to store 7-bits of data particular to that packet.  These
+packets have no following data in the stream, the next byte will be
+another packet.
+
+The second are the "long" packets, these use the field to store the
+number of bytes that are to follow in the stream and make up the
+payload of the packet.  This implies a maximum size of 127 bytes for
+data, combined with 2 bytes header, making a maxmimum packet size of
+129 bytes.
+
+The third are the "short" packets, these split the field into two
+parts as follows:
+
+    _p[1]            _p[0]
+    [ | | | | | | | ][ | | | | | | | ]
+     +-len-+ +-d-+ +-type-+ +-carid-+
+
+The most significant four bits are used to store the number of bytes
+that are to follow in the stream, unless the length is 0x0f
+(-1 perhaps?) in which case no bytes will follow in the stream.  This
+gives us as a maximum of 14 bytes of data for a short packet, and a
+maximum short packet size of 16 bytes.  The three least significant
+bits of the larger data field are used to store data particular to the
+packet, in particular this is always the "colour" for car packets but
+varies for system packets.
+
+Finally there's an extra bugger of a packet, the system packet with
+type 0x07 which has zero data/length but two bytes following it.
+
+While the packet headers themselves are in the clear, often the
+following data is encrypted and needs to be decrypted before it can be
+used (see Encryption).
+
+
+Key Frames
+----------
+
+The data stream is a continuous feed of the latest information from
+the timing system at the track, to enable users to connect at any
+point in the race, the state of the event is regularly saved into
+"key frames".
+
+These key frames are in the same basic format as the data stream and
+are published as files on the web server.  This means they are fetched
+out of band using HTTP, but should be parsed before reading the data
+stream.
+
+Each key frame is numbered, starting with a special "zero" key frame.
+The data stream contains regular packets indicating the current key
+frame number, including an initial packet that tells you which key frame
+you need to fetch first to get up to speed.
+
+I'm not entirely sure what the purpose of the zero key frame is, as
+you can obtain the same information from whatever key frame marker you
+see when you connect to the data stream.  The zero frame always appears
+to be identical to the latest frame, so perhaps they are a way to get
+the data without using the data stream; e.g. in firewalled
+environments.  The help for the Java applet certainly suggests that it
+can do this.
+
+  --> GET /keyframe_$frame.bin HTTP/1.1
+      Host: live-timing.formula1.com
+
+  <-- HTTP/1.1 200 OK
+      Content-Type application/octet-stream
+
+      $data
+
+Note that the frame number has a minimum of five digits and should be
+zero-padded for smaller numbers.  To obtain the zero key frame, the
+URL /keyframe.bin should be used instead.
+
+
+Authorisation
+-------------
+
+In order to decrypt various parts of the data stream (see Encryption)
+we need to obtain the session decryption key from the web server.  The
+two pieces of information needed to request this are the session
+number, obtained from the primary key frame, and an authorisation
+cookie for a registered user.
+
+There's no magic to obtaining this cookie; registration is currently
+free and is performed through a web form that appears when you first
+visit the Live Timing section of the Formula 1 website.  Obtaining the
+cookie is simply a matter of logging in by placing the e-mail address
+and password you registered with in the adjacent web form.
+
+It's therefore quite easy for us to act as a web browser and obtain
+the cookie by constructing a POST to the right URL with the e-mail
+address and password obtained from the user.  The cookie is returned
+in the standard Set-Cookie header.
+
+This may currently be performed on both the live-timing.formula1.com
+http host and the secure.formula1.com https host.
+
+  --> POST /reg/login.asp HTTP/1.1
+      Host: secure.formula1.com
+      Content-Type: application/x-www-form-urlencoded
+      Content-Length: $len
+
+      email=$email&password=$password
+
+  <-- HTTP/1.1 302 Object moved
+      Location: http://www.formula1.com/race/livetiming/popup/0.html
+      Set-Cookie: USER=$cookie; expires=...
+
+Obviously we're not a web browser so we don't worry about following
+the redirect which is intended to give the user the applet now they've
+logged in.  We just snatch the user's authorisation cookie out of the
+repsonse and move on to the next job.
+
+
+Our next job is to obtain the decryption key, this is something the
+Java applet seems to do itself and is simply a matter of issuing a GET
+request to the right URL and getting the response.  The URL has to be
+constructed, the filename portion is the session number and the
+authorisation cookie is passed as a query parameter.
+
+  --> GET /reg/getkey/$session.asp?auth=$cookie HTTP/1.1
+      Host: secure.formula1.com
+
+  <-- HTTP/1.1 200 OK
+      Content-Type: text/html
+      Content-Length: 8
+
+      $key
+
+Ignore the fact the web server thinks it's returning us HTML, the key
+is in plain text and consists of 8 hexadecimal digits.
+
+
+Encryption
+----------
+
+As mentioned above many of the packet payloads are encrypted,
+fortunately it is only a simple symmetric stream cypher based around
+shift and xor.
+
+The decryption key is obtained from the web server (see Authorisation)
+and seeded, we then take care to decrypt any packet that appears to be
+encrypted to ensure we progress through the salt at the same rate the
+server does.
+
+The salt is reset back to the initial seed every time a new key frame
+is saved, or a new event starts.

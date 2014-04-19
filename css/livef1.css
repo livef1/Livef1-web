@@ -1,0 +1,432 @@
+html 
+{
+    width:             100%; 
+    height:            100%; 
+    overflow:          hidden
+}
+
+body 
+{
+	background-color:  white;
+    width:             100%; 
+    height:            100%; 
+    overflow:          hidden; 
+    margin:            0;
+	color:             blue;
+}
+
+body h1
+{
+    text-align:        center;
+}
+
+div.contents
+{
+	float:		       left;
+	width:		       50%;
+	background-color:  black;
+	color:		       white;
+	min-height:        700px;
+	height: 	       700px;
+	max-height:        700px;
+	font-size:         75%;
+	font-weight:       bold;
+	font 
+}
+
+div.contents_wide
+{
+	float:		       left;
+	width:		       100%;
+	background-color:  black;
+	color:		       white;
+	min-height:        720px;
+	height: 	       720px;
+	max-height:        720px;
+	font-size:         100%;
+	font-weight:       bold;
+	font 
+}
+
+div.contents table
+{
+	border-spacing:	   5px;
+}
+
+div.contents_wide table
+{
+	border-spacing:	   5px;
+}
+
+td.car_position
+{
+    text-align:         left;
+    width:              5%
+}
+
+th.car_position
+{
+    text-align:         left;
+    width:              5%
+}
+
+td.driver_number
+{
+    text-align:         right;
+    width:              5%
+}
+
+th.driver_number
+{
+    text-align:         right;
+    width:              5%
+}
+
+td.driver_name
+{
+    text-align:         left;
+    width:              20%;
+}
+
+th.driver_name
+{
+    text-align:         left;
+    width:              20%;
+}
+
+
+td.laptime
+{
+    text-align:         right;
+    width:              10%;
+}
+
+th.laptime
+{
+    text-align:         right;
+    width:              10%;
+}
+
+td.driver_lap
+{
+    text-align:         right;
+    width:              10%;
+}
+
+th.driver_lap
+{
+    text-align:         right;
+    width:              10%;
+}
+
+td.q1
+{
+    text-align:         right;   
+    width:              10%;
+}
+
+th.q1
+{
+    text-align:         right;   
+    width:              10%;
+}
+
+td.q2
+{
+    text-align:         right;
+    width:              10%;   
+}
+
+th.q2
+{
+    text-align:         right;
+    width:              10%;   
+}
+
+td.q3
+{
+    text-align:         right;
+    width:              10%;   
+}
+
+th.q3
+{
+    text-align:         right;
+    width:              10%;   
+}
+
+td.sector1
+{
+    text-align:         center;   
+    width:              10%;
+}
+
+th.sector1
+{
+    text-align:         center;   
+    width:              10%;
+}
+
+td.sector2
+{
+    text-align:         center;
+    width:              10%;   
+}
+
+th.sector2
+{
+    text-align:         center;
+    width:              10%;   
+}
+
+td.sector3
+{
+    text-align:         center;
+    width:              10%;   
+}
+
+th.sector3
+{
+    text-align:         center;
+    width:              10%;   
+}
+
+div.status
+{
+ 	padding:	       5px;
+	float:		       left;
+	width:		       49%;
+	background-color:  white;
+	color:		       black;
+	min-height: 	   50px;
+	height: 	       50px;
+	max-height: 	   50px;
+//	padding-left: 	   5px;
+}
+
+div.status_wide
+{
+	float:		       left;
+	width:		       100%;
+	background-color:  black;
+	color:		       white;
+	min-height:        720px;
+	height: 	       720px;
+	max-height:        720px;
+	font-size:         100%;
+	font-weight:       bold;
+}
+
+div.comment
+{
+	float:             left;
+	width:             49%;
+	background-color:  white;
+	color:		       black;
+	//padding:	       5px;
+	padding-left:      5px;
+	min-height:        670px;
+	height:            670px;
+	max-height:        670px;
+	overflow-y:        scroll; 
+}
+
+div.comment_wide
+{
+	float:             left;
+	width:             100%;
+	background-color:  white;
+	color:		       black;
+	padding-left:      5px;
+	min-height:        90%;
+	height:            90%;
+	max-height:        90%;
+	overflow-y:        scroll; 
+}
+
+div.comment table
+{
+	background-color:  black;
+	color:		       white;
+	padding:           0;
+}
+
+div.comment_wide table
+{
+	background-color:  black;
+	color:		       white;
+	padding:           0;
+}
+
+
+div.comment table tr
+{
+	color:		       yellow;
+	font-size:         125%;
+}
+
+div.trailer
+{
+	float:		       left;
+	width:		       100%;
+	
+}
+
+#status_normal
+{
+	color:		       white;
+}
+
+#status_fastlap
+{
+	color:		        yellow;
+}
+
+#status_disable
+{
+	color:		        grey;
+}
+
+#status_pits
+{
+	color:		        red;
+}
+
+#head_color
+{
+	color:		        blue;
+}
+
+#event_color
+{
+    color:		        white;
+    background-color:   black;
+}
+
+#track_status_normal
+{
+	background-color:green;
+	color:		White;
+}
+
+#track_status_yellow
+{
+	background-color:yellow;
+	color:		red;
+}
+
+#track_status_red
+{
+	background-color:red;
+	color:		yellow;
+}
+
+#status_data_00         
+{
+    // COLOUR_DEFAULT   = A_NORMAL = 0;
+    background-color:black;
+	color:		White;
+}
+
+#status_data_01         
+{
+    // COLOUR_LATEST    = A_BOLD;
+    background-color:black;
+	color:		White;
+	font-weight:bold;
+}
+
+#status_data_02         
+{
+    // COLOUR_PIT       = A_NORMAL;
+    background-color:black;
+	color:		red;
+}
+
+#status_data_03         
+{
+    // COLOUR_BEST      = A_STANDOUT;
+    background-color:black;
+	color:		yellow;
+}
+
+#status_data_04         
+{
+    // COLOUR_RECORD    = A_STANDOUT | A_BOLD;
+    background-color:black;
+	color:		yellow;
+	font-weight:bold;
+}
+
+#status_data_05         
+{
+    // COLOUR_DATA      = A_NORMAL;
+    background-color:black;
+	color:		White;
+}
+
+#status_data_06         
+{
+    // COLOUR_OLD       = A_DIM;
+    background-color:black;
+	color:		grey;
+}
+
+#status_data_07         
+{
+    // COLOUR_ELIMINATED    = A_DIM;
+    background-color:black;
+	color:		grey;
+}
+
+#status_data_08         
+{
+    // COLOUR_POPUP         = A_REVERSE;
+    background-color:green;
+	color:		White;
+}
+
+#status_data_09         
+{
+    // COLOUR_GREEN_FLAG    = A_NORMAL;
+    background-color:green;
+	color:		White;
+}
+
+#status_data_0A         
+{
+    // COLOUR_YELLOW_FLAG   = A_BOLD;
+    background-color:yellow;
+	color:		red;
+}
+
+#status_data_0B          
+{
+    // COLOUR_RED_FLAG      = A_REVERSE;
+    background-color:red;
+	color:		White;	
+}
+
+#status_data_0C
+{
+    background-color:green;
+	color:		White;
+}
+
+#status_data_0D
+{
+    background-color:green;
+	color:		White;
+}
+
+#status_data_0E
+{
+    background-color:green;
+	color:		White;
+}
+
+#status_data_0F
+{
+    background-color:green;
+	color:		White;
+}
