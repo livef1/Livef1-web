@@ -42,20 +42,22 @@ class f1live( object ):
     def __init__( self ):
         self.config = ConfigParser.RawConfigParser()
         self.readConfig()
-        logfilename = self.config.get( 'log', 'file' )
-        logfilesize = self.config.getint( 'log', 'logsize' )
-        logbackups  = self.config.getint( 'log', 'logbackup' )
+        directory = os.path.join( os.path.dirname( __file__ ), self.config.get( 'log', 'dir' ) )
+        if not os.path.exists( directory ):
+            os.makedirs( directory )
+        # end if
+        file_log_handler = handlers.RotatingFileHandler( os.path.join( directory, self.config.get( 'log', 'file' ) ), 
+                                                        maxBytes=self.config.getint( 'log', 'size' ), 
+                                                        backupCount=self.config.getint( 'log', 'backup' ) )
 
-        file_log_handler = handlers.RotatingFileHandler( logfilename, logfilesize, logbackups )
         log.addHandler( file_log_handler )
-
         # nice output format
         formatter = logging.Formatter( '%(asctime)s - %(module)s - %(levelname)s - %(message)s' )
         file_log_handler.setFormatter( formatter )
-        log.setLevel( 10 )    
+        log.setLevel( self.config.getint( 'log', 'level' ) )    
         log.info( 'Starting the application' )
+        self.RefreshRate = 5
         thread.start_new( f1reader.Reader, ( self, ) )
-
         return
     # end constructor    
     
@@ -69,10 +71,10 @@ class f1live( object ):
     
     def header( self, title ):
         return ( """<!DOCTYPE html><html><head><title>Live F1 timing</title>
-                    <meta http-equiv='refresh' content='5'>
+                    <meta http-equiv='REFRESH' content='%i'>
                     <link rel='stylesheet' type= 'text/css' href='/livef1.css' />
                     <link rel='icon' type='image/ico' href='/images/favicon.ico'>
-                    %s</head><body>""" % ( title ) )
+                    %s</head><body>""" % ( self.RefreshRate, title ) )
 
     def trailer( self, trail ):
 	   return ( "<div class='trailer'><h3>%s</h3></div></body></html>" % trail )
@@ -89,6 +91,7 @@ class f1live( object ):
 
     def time( self ):
         yield self.header( "" ) 
+        globalvar.board.dump()
         yield globalvar.board.gethtml( 'contents_wide' )
         yield self.trailer( globalvar.TrackStatus.Copyright )
     # end def
@@ -109,27 +112,7 @@ class f1live( object ):
         yield self.trailer( globalvar.TrackStatus.Copyright )      
     # end def
     status.exposed = True
-    
-    def critical( self, data ):
-        self.__log.critical( data )            
-    # end def
-
-    def error( self, data ):
-        self.__log.error( data )            
-    # end def
-
-    def warn( self, data ):
-        self.__log.warn( data )            
-    # end def
-
-    def info( self, data ):
-        self.__log.info( data )            
-    # end def
-
-    def debug( self, data ):
-        self.__log.debug( data )            
-    # end def   
-    # B9 7D 9F 20
+        
     def hexDebug( self, title, data, length = -1 ):
         hexstr  = ''
         ascii   = ''

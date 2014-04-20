@@ -25,9 +25,7 @@
 #
 #   For showing the way of program logic.   
 #
-import string
 import globalvar
-#from f1item import f1Item
 from f1position import f1Position
 from f1status import f1TrackStatus
 import logging
@@ -192,27 +190,35 @@ class f1Board( object ):
         
     def dump( self ):
         log.info( "---------------------------------------------" )
-        for item in self.__cars:
-            line = "cars: nr: %-3s, pos: %-3s, name: %-13s" % ( item.getNumber().value, 
-                                        item.getPosition().value, item.getName().value ) 
-            if ( item.getLaptime().value ):
-                line = line + ", time: %s" % item.getLaptime().value  
-            if ( item.getInterval().value ):
-                line = line + ", int: %s" % item.getInterval().value     
-            if ( item.getGap().value ):
-                line = line + ", gap: %s" % item.getGap().value
-            if ( item.getLap().value ):
-                line = line + ", lap: %2s" % item.getLap().value
-            if ( item.getPitLap( 0 ).value ):
-                line = line + ", pit: (%s,%s)" % ( item.getPitLap(0).value, item.getPitLap(1).value )
-            #if ( item.getSector( 0 ).value ):
-            #    line = line + ", sect: (%s,%s,%s)" % ( item.getSector( 0 ).value,
-            #                                item.getSector( 1 ).value, item.getSector( 2 ).value );
-            if ( item.getPeriod( 0 ).value ):
-                line = line + ", per: (%s,%s,%s)" % ( item.getPeriod( 0 ).value,
-                                            item.getPeriod( 1 ).value, item.getPeriod( 2 ).value );
-            log.info( line )
-        # next
+        log.info( "maxCars : %i" % self.__maxCars ) 
+        for x in range( self.__maxCars ):
+            for y in range( self.__maxCars ):
+                item = self.__cars[ y ]
+                if item.getPosition().value:
+                    if int( item.getPosition().value ) == x:
+                        line = "cars: nr: %-3s, pos: %-3s, name: %-13s" % ( item.getNumber().value, 
+                                                    item.getPosition().value, item.getName().value ) 
+                        if ( item.getLaptime().value ):
+                            line = line + ", time: %s" % item.getLaptime().value  
+                        if ( item.getInterval().value ):
+                            line = line + ", int: %s" % item.getInterval().value     
+                        if ( item.getGap().value ):
+                            line = line + ", gap: %s" % item.getGap().value
+                        if ( item.getLap().value ):
+                            line = line + ", lap: %2s" % item.getLap().value
+                        if ( item.getPitLap( 0 ).value ):
+                            line = line + ", pit: (%s,%s)" % ( item.getPitLap(0).value, item.getPitLap(1).value )
+                        #if ( item.getSector( 0 ).value ):
+                        #    line = line + ", sect: (%s,%s,%s)" % ( item.getSector( 0 ).value,
+                        #                                item.getSector( 1 ).value, item.getSector( 2 ).value );
+                        if ( item.getPeriod( 0 ).value ):
+                            line = line + ", per: (%s,%s,%s)" % ( item.getPeriod( 0 ).value,
+                                                        item.getPeriod( 1 ).value, item.getPeriod( 2 ).value );
+                        log.info( line )
+                    # end if
+                # end if
+            # end for
+        # end for
         log.info( "fastest: nr: %-3s, name: %-13s, lap: %s, time: %s" % (
                         self.__fastest.getNumber().value,
                         self.__fastest.getName().value,

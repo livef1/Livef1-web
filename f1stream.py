@@ -25,7 +25,7 @@
 #
 #   For showing the way of program logic.   
 #
-
+import os
 import array
 import socket
 import select
@@ -230,6 +230,9 @@ class f1session( object ):
         self.__block            = ""
         self.__decryption_error = False
         self.__refreshRate      = 100
+        self.__StoreData        = ( self.__theApp.config.get( 'keyframe', 'store' ) == "True" )
+        self.__keyPath          = os.path.join( os.path.dirname( __file__ ), self.__theApp.config.get( 'keyframe', 'dir' ) )
+        self.keyframe           = None      
         self.packet.crypto.reset()
         return
 
@@ -246,7 +249,9 @@ class f1session( object ):
             C = Cookie.BaseCookie( self.__cookie )
             for k, v in C.items():
                 if ( k == "USER" ): 
-                    self.__COOKIE_VALUE = v.value 
+                    self.__COOKIE_VALUE = v.value
+                # end if
+            # end for 
             log.debug( "Cookie.USER = %s" % ( self.__COOKIE_VALUE ) )
             return self.__COOKIE_VALUE
         # endif
@@ -258,12 +263,26 @@ class f1session( object ):
             url = "http://%s:%i%s_%05d.bin" % ( self.auth_http_host, self.auth_http_port, KEYFRAME_URL_PREFIX, self.frame )
         else:
             url = 'http://%s:%s%s.bin' % ( self.auth_http_host, self.auth_http_port, KEYFRAME_URL_PREFIX )
+            self.frame = number
+        # end if
         log.info( "REQ: %s" % ( url ) ) 
         response, content = self.__http.request( url, 'GET' )
         log.debug( "RESP: %s" % ( response ) )
+        # end if            
         if response[ 'status' ] == '200':
             self.__theApp.hexDebug( "KEYFRAME", content )
-            return content
+            if self.__StoreData:
+                if self.keyframe:
+                    self.keyframe.close()
+                # end if
+                directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
+                if not os.path.exists( directory ):
+                    os.makedirs( directory )
+                # end if
+                self.keyframe = open( os.path.join( directory, 'keyframe.bin' ), 'wb+', 0 )
+                self.keyframe.write( content )
+            # end if
+            return content           
         return "" 
 
     def obtain_decryption_key( self ):
@@ -271,6 +290,15 @@ class f1session( object ):
         response, content = self.__http.request( url, 'GET' )
         log.debug( "RESP: %s" % ( response ) )
         log.debug( "DATA: %s" % ( content ) )
+        if self.__StoreData:
+            directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
+            if not os.path.exists( directory ):
+                os.makedirs( directory )
+            # end if
+            key = open( os.path.join( directory, 'keyframe.key' ), 'wb+', 0 )
+            key.write( content )
+            key.close()
+        # end if            
         return content
         
     def open( self ):
@@ -305,6 +333,9 @@ class f1session( object ):
                 buff = fd_to_socket[ fd ].recv( 512 );
                 if buff:
                     # data
+                    if self.keyframe: 
+                        self.keyframe.write( buff )
+                    # end if
                     self.parse( buff )
                     self.__timer = 0
                     if self.__decryption_error:
@@ -344,14 +375,14 @@ class f1session( object ):
         # Timeout ?
         b = bytes( "\x10" ) 
         self.pollCount += 1
-        if ( self.pollCount % 10 ) == 0:
-            globalvar.board.dump()
+        #if ( self.pollCount % 10 ) == 0:
+        #    globalvar.board.dump()
         # end if
         if self.pollCount > 60:
             return False
         # endif
         length = self.sock.send( b )
-        log.debug( "Send : %s, length : %i, pollCount %i" % ( b, length, self.pollCount ) )
+        log.debug( "Send : %s, length : %i, pollCount %i, refresh %i" % ( b, length, self.pollCount, self.__theApp.RefreshRate ) )
         if length > 0:
             # Reset the timer value.
             self.__timer = 0
@@ -471,6 +502,16 @@ class f1session( object ):
         # endif
         log.info( "System.TimeStamp : %i = %02i:%02i:%02i" % ( 
                 self.__timestamp, hours, mins, secs ) )
+        if self.__StoreData:
+            if self.keyframe:
+                self.keyframe.close()
+            # end if
+            directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
+            if not os.path.exists( directory ):
+                os.makedirs( directory )
+            # end if
+            self.keyframe = open( os.path.join( directory, 'TS%04X.bin' % self.__timestamp ), 'wb+', 0 )
+        # end if
         return
     #
     #   
@@ -491,8 +532,11 @@ class f1session( object ):
             if self.__refreshRate > 608:
                 # self.__refreshRate  = 100
                 log.error( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
-               
-            # end if    
+            # end if
+            self.__theApp.RefreshRate = ( self.__refreshRate / 100 )
+            if self.__theApp.RefreshRate == 0:
+                self.__theApp.RefreshRate = 1
+            # end if                   
         elif self.packet.type == SYS.NOTICE:
             log.info( "System.Notice : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
             globalvar.TrackStatus.Notice = self.packet.payload2str()
