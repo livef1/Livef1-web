@@ -20,6 +20,16 @@ body h1
     text-align:        center;
 }
 
+body h2
+{
+    text-align:        center;
+}
+
+body h3
+{
+    text-align:        center;
+}
+
 div.contents
 {
 	float:		       left;
@@ -43,7 +53,7 @@ div.contents_wide
 	min-height:        720px;
 	height: 	       720px;
 	max-height:        720px;
-	font-size:         100%;
+	font-size:         140%;	
 	font-weight:       bold;
 	font 
 }
@@ -51,11 +61,13 @@ div.contents_wide
 div.contents table
 {
 	border-spacing:	   5px;
+	font-size:         120%;
 }
 
 div.contents_wide table
 {
 	border-spacing:	   5px;
+	line-height:       90%;
 }
 
 td.car_position

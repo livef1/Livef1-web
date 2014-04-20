@@ -70,18 +70,18 @@ class f1live( object ):
         return
     
     def header( self, title ):
-        return ( """<!DOCTYPE html><html><head><title>Live F1 timing</title>
+        return ( """<!DOCTYPE html><html><head><title>%s</title>
                     <meta http-equiv='REFRESH' content='%i'>
                     <link rel='stylesheet' type= 'text/css' href='/livef1.css' />
                     <link rel='icon' type='image/ico' href='/images/favicon.ico'>
-                    %s</head><body>""" % ( self.RefreshRate, title ) )
+                    <h2>%s</h2></head><body>""" % ( title, self.RefreshRate, title ) )
 
     def trailer( self, trail ):
-	   return ( "<div class='trailer'><h3>%s</h3></div></body></html>" % trail )
+	   return ( "<div class='trailer'><h3>LiveF1Web: Copyright 2014 by Marc Bertens, all rights reserved, Timing info: %s</h3></div></body></html>" % trail )
     # end def
         
     def index( self ):
-        yield self.header( "<h1>Live F1 timing</h1>" )
+        yield self.header( "Live F1 Web - Timing" )
         yield globalvar.board.gethtml( 'contents' )
         yield globalvar.TrackStatus.getHtml( 'status' )
         yield globalvar.commentary.gethtml( 'comment' ) 
