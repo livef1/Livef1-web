@@ -30,6 +30,11 @@ import time
 import f1logger
 import f1stream
 import logging
+
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 def CheckIt():
@@ -55,9 +60,8 @@ def ReaderSession( Sess ):
             tries = 0
         else:   
             # stop the thread for now
-            log.error( "Error %s ...." % Sess.error )
+            log.error( "Error %s, connecting, try %i of 5" % ( Sess.error, ctries ) )
             if tries > 5:
-                log.error( "Error connecting, try %i of 5" % ctries )
                 run = 0
             else:
                 tries += 1
@@ -78,17 +82,18 @@ def Reader( theApp ):
         Sess = f1stream.f1session( globalvar.theApp, username, passwd )            
         key_val = Sess.obtain_auth_cookie()
         if not key_val:
-            log.warning( "Error getting cookie, try %i of 5" % tries )
+            log.error( "Error getting cookie, try %i of 5" % tries )
             tries   += 1
         else:
             log.info( "Got authentication cookie: %s" % ( key_val ) )
             crun    = 1
-            ctries  = 0
+            tries   = 0
         # end if   
         if key_val:               
             ReaderSession( Sess )
+            tries   = 0
+        log.error( "Error getting cookie, try %i of 5" % tries )
         if tries > 5:
-            log.error( "Error getting cookie, try %i of 5" % tries )
             run = 0
         #end if
     # end while

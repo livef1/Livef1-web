@@ -25,11 +25,15 @@
 #
 #   For showing the way of program logic.   
 #
-
 import time
 import datetime
 import globalvar
 import logging
+
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 class f1text( object ):

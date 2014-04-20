@@ -38,6 +38,11 @@ from f1comment import f1commentary, f1text
 from f1drivers import f1Board
 from f1crypt import f1Crypto 
 import logging
+
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 CRYPTO_SEED         = 0x55555555
@@ -274,13 +279,23 @@ class f1session( object ):
             if self.__StoreData:
                 if self.keyframe:
                     self.keyframe.close()
+                    self.keyframe = None                    
                 # end if
                 directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
                 if not os.path.exists( directory ):
                     os.makedirs( directory )
                 # end if
-                self.keyframe = open( os.path.join( directory, 'keyframe.bin' ), 'wb+', 0 )
-                self.keyframe.write( content )
+                filename = os.path.join( directory, 'keyframe_http_%04X.bin' % self.__timestamp ) 
+                if not os.path.isfile( filename ):               
+                    self.keyframe = open( filename, 'wb+', 0 )
+                    self.keyframe.write( content )
+                    self.keyframe.close()
+                    self.keyframe = None
+                # end if 
+                filename = os.path.join( directory, 'keyframe_ts_%04X.bin' % self.__timestamp ) 
+                if not os.path.isfile( filename ):               
+                    self.keyframe = open( filename, 'wb+', 0 )
+                # end if                    
             # end if
             return content           
         return "" 
@@ -294,10 +309,13 @@ class f1session( object ):
             directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
             if not os.path.exists( directory ):
                 os.makedirs( directory )
+            filename = os.path.join( directory, 'keyframe.key' )
             # end if
-            key = open( os.path.join( directory, 'keyframe.key' ), 'wb+', 0 )
-            key.write( content )
-            key.close()
+            if not os.path.isfile( filename ):
+                key = open( filename, 'wb+', 0 )
+                key.write( content )
+                key.close()
+            # end if
         # end if            
         return content
         
@@ -340,7 +358,7 @@ class f1session( object ):
                     self.__timer = 0
                     if self.__decryption_error:
                         poller.unregister( self.sock )
-                        log.info( "Close : Due to descryption error" )
+                        log.info( "Close : Due to decryption error" )
                         self.close()
                         return False
                     self.pollCount = 0
@@ -416,13 +434,19 @@ class f1session( object ):
     def HandleSysKeyFrame( self ):
         last    = self.frame 
         number = self.packet.payload2int()
-        if self.__decryption_error:
-           self.frame = 0  
+        #if self.__decryption_error:
+        #   self.frame = self.frame - 1  
+        #   if self.frame < 0:
+        #       self.frame = 0 
+        #   # end if
+        # end if 
         if self.frame <> number:
             # now obtain the key
+            self.packet.crypto.reset()
             self.__block = self.obtain_key_frame( number )
             self.__decryption_error = False
-        self.packet.crypto.reset() 
+            self.packet.crypto.reset() 
+        self.packet.crypto.reset()
         # endif
         self.frame = number
         log.info( "SYS.KEY_FRAME : %i (%X), last : %i (%X), block-length %i" % ( self.frame, self.frame, last, last, len( self.__block ) ) )
@@ -505,12 +529,16 @@ class f1session( object ):
         if self.__StoreData:
             if self.keyframe:
                 self.keyframe.close()
+                self.keyframe = None
             # end if
             directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
             if not os.path.exists( directory ):
                 os.makedirs( directory )
             # end if
-            self.keyframe = open( os.path.join( directory, 'TS%04X.bin' % self.__timestamp ), 'wb+', 0 )
+            filename = os.path.join( directory, 'keyframe_ts_%04X.bin' % self.__timestamp ) 
+            if not os.path.isfile( filename ):               
+                self.keyframe = open( filename, 'wb+', 0 )
+            # end if
         # end if
         return
     #
@@ -521,6 +549,9 @@ class f1session( object ):
             self.HandleSysEventId()
         elif self.packet.type == SYS.KEY_FRAME:
             self.HandleSysKeyFrame()      
+        # endif
+        if self.__decryption_error:
+            return
         elif self.packet.type == SYS.VALID_MARKER:
             log.info( "System.ValidMarker : data = %i, payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
         elif self.packet.type == SYS.COMMENTARY:
@@ -528,15 +559,6 @@ class f1session( object ):
         elif self.packet.type == SYS.REFRESH_RATE:
             self.__refreshRate = self.packet.payload2int()            
             log.warning( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
-            # values: 96, 608, 8768            
-            if self.__refreshRate > 608:
-                # self.__refreshRate  = 100
-                log.error( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
-            # end if
-            self.__theApp.RefreshRate = ( self.__refreshRate / 100 )
-            if self.__theApp.RefreshRate == 0:
-                self.__theApp.RefreshRate = 1
-            # end if                   
         elif self.packet.type == SYS.NOTICE:
             log.info( "System.Notice : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
             globalvar.TrackStatus.Notice = self.packet.payload2str()
@@ -617,20 +639,28 @@ class f1session( object ):
             #
             log.info( "Interval: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverInterval( self.packet.car, self.packet.data, text )
-
+            if not self.__decryption_error and event == f1TrackStatus.RACE_EVENT:
+                globalvar.board.UpdateDriverGap()
+            # end if
         elif self.packet.type == CAR.SECTOR_1[ event ]:
             #
             #
             #
             log.info( "Sector-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 0, text )
-
+            if not self.__decryption_error:
+                globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, "" ) 
+                globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, "" )
+            # end if
         elif self.packet.type == CAR.SECTOR_2[ event ]:
             #
             #
             #
             log.info( "Sector-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
             self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, text )
+            if not self.__decryption_error:
+                globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, "" )
+            # end if
         elif self.packet.type == CAR.SECTOR_3[ event ]:
             #
             #

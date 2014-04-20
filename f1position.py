@@ -29,6 +29,11 @@ import globalvar
 from f1item import f1Item
 from f1status import f1TrackStatus
 import logging
+
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 class f1Position( object ):
@@ -170,12 +175,16 @@ class f1Position( object ):
                            self.__number.data,      self.__number.value,     
                            self.__name.data,        self.__name.value )      
         if event == f1TrackStatus.RACE_EVENT:
-            output = output + '''<td class="laptime" id="status_data_%02X">%s</td>
+            output = output + '''<td class="laptime"  id="status_data_%02X">%s</td>
+                                 <th class="interval" id="status_data_%02X">%s</th>
+                                 <th class="gap"      id="status_data_%02X">%s</th>
                                  <td class="sector1" id="status_data_%02X">%s</td>
                                  <td class="sector2" id="status_data_%02X">%s</td>
                                  <td class="sector3" id="status_data_%02X">%s</td>
                                  <td class="driver_lap" id="status_data_%02X">%s</td>''' % (    
-                                    self.__laptime.data,        self.__laptime.value,    
+                                    self.__laptime.data,        self.__laptime.value,
+                                    self.__interval.data,       self.__interval.value,
+                                    self.__gap.data,            self.__gap.value,                                                                                  
                                     self.__sector[ 0 ].data,    self.__sector[ 0 ].value,  
                                     self.__sector[ 1 ].data,    self.__sector[ 1 ].value,  
                                     self.__sector[ 2 ].data,    self.__sector[ 2 ].value,  

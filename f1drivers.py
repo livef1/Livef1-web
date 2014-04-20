@@ -29,6 +29,11 @@ import globalvar
 from f1position import f1Position
 from f1status import f1TrackStatus
 import logging
+
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 def isprint( _str ):
@@ -41,7 +46,9 @@ def isprint( _str ):
 
 def isnumber( _str ):
     for x in _str:
-        if ( ord( x ) < 0x30 or ord( x ) > 0x39 and not x == '.' ):    
+        if x == '.':
+            continue
+        if ( x < '0' or x > '9' ):    
             return False 
         # end if
     # end for
@@ -50,7 +57,9 @@ def isnumber( _str ):
 def istime( _time ):
     for x in _time:
         i = ord( x )        
-        if ( ( i < 0x30 or i > 0x39 ) and not x == '.' and not x == ':' ):    
+        if x == '.' or x == ':':
+            continue
+        if i < 0x30 or i > 0x39:    
             return False 
         # end if
     # end for
@@ -106,6 +115,8 @@ class f1Board( object ):
         return False
         
     def setDriverName( self, car, data, name ):
+        if not name:
+            return True
         if isprint( name ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setName( data, name )
@@ -113,16 +124,20 @@ class f1Board( object ):
         log.error( "setDriverName not a printable string [%s]" % ( name ))                          
         return False
     
-    def setDriverInterval( self, car, data, interval ):
-        if isnumber( interval ):
+    def setDriverInterval( self, car, data, intr ):
+        if not intr:
+            return True
+        if isprint( intr ):
             self.updateMaxCars( car )
-            self.__cars[ car-1 ].setInterval( data, interval )
+            self.__cars[ car-1 ].setInterval( data, intr )
             return True  
-        log.error( "setDriverInterval not a number string [%s]" % ( interval ))                         
+        log.error( "setDriverInterval not a number string [%s]" % ( intr ))                         
         return False       
 
     def setDriverGap( self, car, data, gap ):
-        if isnumber( interval ):
+        if not gap:
+            return True
+        if isprint( gap ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setGap( data, gap )        
             return True
@@ -130,7 +145,9 @@ class f1Board( object ):
         return False                    
 
     def setDriverLaptime( self, car, data, laptime ):
-        if istime( laptime ):
+        if not laptime:
+            return True
+        if isprint( laptime ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLaptime( data, laptime )        
             return True
@@ -138,6 +155,8 @@ class f1Board( object ):
         return False        
 
     def setDriverSector( self, car, data, sect, secttime ):
+        if not secttime:
+            return True
         if issector( secttime ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setSector( sect, data, secttime )        
@@ -146,11 +165,15 @@ class f1Board( object ):
         return False        
         
     def setDriverPitLap( self, car, data, pit, secttime ):
+        if not secttime:
+            return True
         self.updateMaxCars( car )
         self.__cars[ car-1 ].setPitLap( pit, data, secttime )        
         return True   
         
     def setDriverPeriod( self, car, data, period, time ):
+        if not time:
+            return True
         if istime( time ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPeriod( data, period, time )        
@@ -187,6 +210,9 @@ class f1Board( object ):
         self.updateMaxCars( car )
         self.__fastest.setLap( data, lap )        
         return True      
+        
+    def UpdateDriverGap( self ):
+        return
         
     def dump( self ):
         log.info( "---------------------------------------------" )
@@ -235,6 +261,8 @@ class f1Board( object ):
 			         <th class="driver_name" id="head_color">Driver</th>''' % ( div_tag_name )
         if globalvar.TrackStatus.Event == f1TrackStatus.RACE_EVENT:
             output = output + '''<th class="laptime" id="head_color">Lap Time</th>
+                                 <th class="interval" id="head_color">Int</th>
+                                 <th class="gap" id="head_color">Gap</th>
 			                     <th class="sector1" id="head_color">Sec #1</th>
 			                     <th class="sector1" id="head_color">Sec #2</th>
 			                     <th class="sector1" id="head_color">Sec #3</th>
@@ -243,7 +271,7 @@ class f1Board( object ):
             output = output + '''<th class="laptime" id="head_color">Lap Time</th>
 			                     <th class="sector1" id="head_color">Sec #1</th>
 			                     <th class="sector1" id="head_color">Sec #2</th>
-			                     <th class="sector1" id="head_color">Sec #3</th>
+			                     <th class="sector1" id="head_color">Sec #3</th>		                     
     		                     <th class="driver_lap" id="head_color">Lap</th>'''
         elif globalvar.TrackStatus.Event == f1TrackStatus.QUALIFYING_EVENT:
             output = output + '''<th class="q1" id="head_color">Q1</th>

@@ -36,6 +36,10 @@ import cherrypy
 import f1reader
 from f1status import f1TrackStatus
 
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 log  = logging.getLogger('live-f1')
 
 class f1live( object ):
@@ -74,7 +78,7 @@ class f1live( object ):
                     <meta http-equiv='REFRESH' content='%i'>
                     <link rel='stylesheet' type= 'text/css' href='/livef1.css' />
                     <link rel='icon' type='image/ico' href='/images/favicon.ico'>
-                    <h2>%s</h2></head><body>""" % ( title, self.RefreshRate, title ) )
+                    <h2>%s</h2></head><body>""" % ( title, 1, title ) )
 
     def trailer( self, trail ):
 	   return ( "<div class='trailer'><h3>LiveF1Web: Copyright 2014 by Marc Bertens, all rights reserved, Timing info: %s</h3></div></body></html>" % trail )

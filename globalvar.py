@@ -25,6 +25,10 @@
 #
 #   For showing the way of program logic.   
 #
+__version__ = "0.1"
+__applic__  = "Live F1 Web"
+__author__  = "Marc Bertens"
+
 commentary  = None
 board       = None
 TrackStatus = None
