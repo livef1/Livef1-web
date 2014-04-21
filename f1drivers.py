@@ -26,6 +26,7 @@
 #   For showing the way of program logic.   
 #
 import globalvar
+import re
 from f1position import f1Position
 from f1status import f1TrackStatus
 import logging
@@ -83,135 +84,216 @@ class f1Board( object ):
         self.__fastest = f1Position()
         # create 32 cars 
         self.__maxCars = 0
+        self.currentLap = 0
+        self.Event      = 1
+        self.__index    = []
         for i in range( 32 ):
             self.__cars.append( f1Position() )
+            self.__index.append( [ 0, 0 ] )
         return
        
     def updateMaxCars( self, car ):
         if car > self.__maxCars:
             self.__maxCars = car
         log.info( "max CARS %i" % self.__maxCars ) 
+        self.UpdateTable()
         # end if
         return 
        
     def setDriverNo( self, car, data, number ):
         if not number:
-            return True
+            return 0
         if number.isdigit():
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setNumber( data, number )
-            return True      
+            return 0      
         log.error( "setDriverNo not a number [%s]" % ( number ))                   
-        return False
+        return 1
 
     def setDriverPosition( self, car, data, number ):
         if not number:
-            return True        
+            return 0        
         if number.isdigit():
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPosition( data, number )
-            return True 
+            log.info( "LAP setting position %i for car %i" % ( int( number ), car ) )
+            self.__index[ int( number ) ] = [ car, int( number ) ]
+            return 0 
         log.error( "setDriverPosition not a number [%s]" % ( number ))                          
-        return False
+        return 1
         
     def setDriverName( self, car, data, name ):
         if not name:
-            return True
+            return 0
         if isprint( name ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setName( data, name )
-            return True
+            return 0
         log.error( "setDriverName not a printable string [%s]" % ( name ))                          
-        return False
+        return 1
     
     def setDriverInterval( self, car, data, intr ):
         if not intr:
-            return True
+            return 0
         if isprint( intr ):
             self.updateMaxCars( car )
-            self.__cars[ car-1 ].setInterval( data, intr )
-            return True  
+            if self.Event == 1:
+                if car == 1:    # pole position
+                    self.__cars[ car-1 ].setInterval( data, '0' )
+                    self.__cars[ car-1 ].setLap( data, int( intr ) )
+                    self.currentLap = int( intr )                    
+                else:
+                    self.__cars[ car-1 ].setInterval( data, intr )
+                # endif
+            else:
+                self.__cars[ car-1 ].setInterval( data, intr )                                            
+            # end if
+            return 0  
         log.error( "setDriverInterval not a number string [%s]" % ( intr ))                         
-        return False       
+        return 1       
 
     def setDriverGap( self, car, data, gap ):
         if not gap:
-            return True
+            return 0
         if isprint( gap ):
             self.updateMaxCars( car )
-            self.__cars[ car-1 ].setGap( data, gap )        
-            return True
+            self.__cars[ car-1 ].setGap( data, gap )
+            self.UpdateTable()        
+            return 0
         log.error( "setDriverGap not a number string [%s]" % ( gap ))                 
-        return False                    
+        return 1                    
 
     def setDriverLaptime( self, car, data, laptime ):
         if not laptime:
-            return True
+            return 0
         if isprint( laptime ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLaptime( data, laptime )        
-            return True
+            return 0
         log.error( "setDriverLaptime not a time string [%s]" % ( laptime ) )        
-        return False        
+        return 1        
 
     def setDriverSector( self, car, data, sect, secttime ):
         if not secttime:
-            return True
+            return 0
         if issector( secttime ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setSector( sect, data, secttime )        
-            return True
+            return 0
         log.error( "setDriverSector not a sector string [%s]" % ( secttime ) )        
-        return False        
+        return 1        
         
     def setDriverPitLap( self, car, data, pit, secttime ):
         if not secttime:
-            return True
+            return 0
         self.updateMaxCars( car )
         self.__cars[ car-1 ].setPitLap( pit, data, secttime )        
-        return True   
+        return 0   
         
     def setDriverPeriod( self, car, data, period, time ):
         if not time:
-            return True
+            return 0
         if istime( time ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPeriod( data, period, time )        
-            return True
+            return 0
         log.error( "setDriverPeriod not a sector string [%s]" % ( time ) )            
-        return False        
+        return 1        
         
     def setDriverLap( self, car, data, lap ):
         if not lap:
-            return True
+            return 0
         if lap.isdigit():
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLap( data, lap )        
-            return True
+            return 0
         log.error( "setDriverLap not a number [%s]" % ( lap ) )     
-        return False    
+        return 1    
         
     def setFastestDriverNo( self, car, data, number ):
         self.updateMaxCars( car )
         self.__fastest.setNumber( data, number ) 
-        return True
+        return 0
         
     def setFastestDriverName( self, car, data, name ):
         self.updateMaxCars( car )
         self.__fastest.setName( data, name )        
-        return True
+        return 0
         
     def setFastestDriverLaptime( self, car, data, time ):
         self.updateMaxCars( car )
         self.__fastest.setLaptime( data, time )        
-        return True      
+        return 0      
         
     def setFastestDriverLap( self, car, data, lap ):
         self.updateMaxCars( car )
         self.__fastest.setLap( data, lap )        
-        return True      
+        return 0      
         
     def UpdateDriverGap( self ):
+        return
+
+    def ToSecs( self, _time ):
+        if _time:   
+            times = map( int, re.split( r"[:.]", _time ) )
+            times[ 2 ] /= 100
+            return float( (times[ 0 ] * 60) + times[ 1 ] + (times[ 2 ] / 1000.) )
+        return 0.0
+
+    def UpdateTable( self ):
+        #log.info( "Update Table LAP" )
+        """
+            All this is fussy-logic to restore the items the live timing interface no longer supplies 
+        """
+        gap = 0.0
+        behind = 0
+        prev = None
+        pole = None
+        for car, pos in self.__index:
+            if not car == 0:
+                if pos == 1:
+                    pole    = car - 1
+                # end if      
+                if not prev == None:
+                    prevrec = self.__cars[ prev ] 
+                else:
+                    prevrec = None                                                      
+                log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
+                curr_rec = self.__cars[ car-1 ] 
+                value = curr_rec.getInterval()                 
+                if not value.value == '' and not 'L' in value.value:                
+                    gap += float( value.value )
+                else:
+                    behind += 1
+                    if not prevrec == None:
+                        gap = ( self.ToSecs( prevrec.getLaptime().value ) * behind ) + 1
+                    else:
+                        gap = ( self.ToSecs( self.__cars[ pole ].getLaptime().value ) * behind ) + 1
+                    # end if
+                # end if                                                                                         
+                curr_rec.setGap( value.data, "%.1f" % gap )                    
+                # end if
+                if not prevrec == None:
+                    prevrec = self.__cars[ prev ] 
+                    value = prevrec.getLap()
+                    if "L" in curr_rec.getInterval().value:
+                        tmp = ''
+                        for x in curr_rec.getInterval().value:
+                            if x.isdigit():
+                                tmp += x
+                            # end if                              
+                        # end for
+                        if tmp.isdigit():   
+                            tmp = int( tmp )                         
+                            curr_rec.setLap( 0, str( int(value.value) - tmp ) )                
+                        # end if
+                    else:
+                        curr_rec.setLap( 0, value.value )
+                    # end if                        
+                # end if    
+                prev = car-1                                               
+            # end if        
+        # end for
         return
         
     def dump( self ):
