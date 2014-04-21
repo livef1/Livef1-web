@@ -60,7 +60,9 @@ class f1live( object ):
         file_log_handler.setFormatter( formatter )
         log.setLevel( self.config.getint( 'log', 'level' ) )    
         log.info( 'Starting the application' )
-        self.RefreshRate = 5
+        self.RefreshRate        = 5
+        self.loadingKeyframe    = False
+        self.interpolateNext    = False
         thread.start_new( f1reader.Reader, ( self, ) )
         return
     # end constructor    
@@ -95,7 +97,7 @@ class f1live( object ):
 
     def time( self ):
         yield self.header( "" ) 
-        globalvar.board.dump()
+        #globalvar.board.dump()
         yield globalvar.board.gethtml( 'contents_wide' )
         yield self.trailer( globalvar.TrackStatus.Copyright )
     # end def
