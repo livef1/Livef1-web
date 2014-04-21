@@ -36,7 +36,8 @@ import Cookie
 import globalvar
 from f1comment import f1commentary, f1text
 from f1drivers import f1Board
-from f1crypt import f1Crypto 
+from f1crypt import f1Crypto
+from f1status import f1TrackStatus 
 import logging
 
 __version__ = "0.1"
@@ -99,118 +100,195 @@ class SYS_SPEED( object ):
 
 class f1packet( object ):
     def __init__( self, theApp ):
-        self.car = 0;
-        self.type = 0;
-        self.length = 0;
-        self.data = 0
-        self.payload    = bytes()
-        self.__theApp   = theApp
-        self.crypto     = f1Crypto( self.__theApp )
+        self.car                = 0;
+        self.type               = 0;
+        self.length             = 0;
+        self.data               = 0
+        self.payload            = bytes()
+        self.__theApp           = theApp
+        self.crypto             = f1Crypto( self.__theApp )
         return
     # end def 
+
+    def __SwapValueLength( self ):
+        tmp         = self.value
+        self.value  = self.length
+        self.length = tmp
+        return        
         
-    def set( self, block ):
-        if len( block ) < 2:
+    def set( self, stream ):
+        if stream.len() < 2:
             self.type = 0;            
             return ''
         # end if 
-        self.car        = ord( block[ 0 ] ) & 0x1F
-        self.type       = ( ( ord( block[ 0 ] ) >> 5 ) | ( ( ord( block[ 1 ] ) & 0x01 ) << 3 ) )
-        self.length     = 0
-        self.data       = 0
-        self.payload    = ""
-        decrypt         = False
+        block = stream.read( 2 )
         b0 = ord(block[ 0 ])         
         b1 = ord(block[ 1 ])
         
-        id = ( b0 & 0x1F );
-        x =  ( ( b0 & 0xE0 ) >> 5 & 0x7 | ( b1 & 0x1) << 3 );
-        c =  ( ( b1 & 0x0E ) >> 1 );
-        l =  ( ( b1 & 0xF0 ) >> 4 );
-        v =  ( ( b1 & 0xFE ) >> 1 );        
+        self.car        = ( b0 & 0x1F );
+        self.type       =  ( ( b0 & 0xE0 ) >> 5 & 0x7 | ( b1 & 0x1) << 3 );
+        self.data       =  ( ( b1 & 0x0E ) >> 1 );
+        self.length     =  ( ( b1 & 0xF0 ) >> 4 );
+        self.value      =  ( ( b1 & 0xFE ) >> 1 );        
         #if len( block ) < l + 2:
         #    return block 
         # end if
-        log.debug( "f1packet: (%X,%X), id %i, x: %i, c: %i, l: %i, v: %s" % ( b0, b1, id, x, c, l, v ) )        
-        
+        log.debug( "f1packet: (%X,%X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
+                            b0, b1, self.type, self.car, self.data, self.length, self.value ) )
+        decrypt = False                                    
         if self.car == 0:
-            if self.type in [ SYS.EVENT_ID, SYS.KEY_FRAME, SYS.VALID_MARKER, SYS.WEATHER, SYS.TRACK_STATUS ]:
-                self.data     = ( ( ord( block[ 1 ] ) & 0x0E ) >> 1 )
-                if ( ord( block[ 1 ] ) & 0xF0 ) == 0xF0:
-                    self.length = 0   
+            if self.type == SYS.EVENT_ID:
+                self.payload    = array.array( 'B', stream.read( self.length ) )
+                log.debug( "f1packet: SYS.EVENT_ID" )
+            elif self.type == SYS.KEY_FRAME:
+                self.payload    = array.array( 'B', stream.read( self.length ) )
+                log.debug( "f1packet: SYS.KEY_FRAME" )               
+            elif self.type == SYS.VALID_MARKER:
+                log.debug( "f1packet: SYS.VALID_MARKER" )
+                if not self.length == 0:
+                    log.debug(  "Long valid marker" )
+                # end if          
+                self.payload    = None
+            elif self.type == SYS.REFRESH_RATE:
+                log.debug( "f1packet: SYS.REFRESH_RATE" )
+                self.payload    = None             
+            elif self.type == SYS.TIMESTAMP:
+                log.debug( "f1packet: SYS.TIMESTAMP" )
+                decrypt         = True
+                self.length     = 2
+                self.payload    = array.array( 'B', stream.read( self.length ) )
+            elif self.type == SYS.WEATHER:
+                log.debug( "f1packet: SYS.WEATHER" )
+                if self.length < 15:
+                    decrypt = True
+                    self.payload = array.array( 'B', stream.read( self.length ) )
                 else:
-                    self.length   = ord( block[ 1 ] ) >> 4         
-                # endif   
-            elif self.type in [ SYS.COMMENTARY, SYS.NOTICE, SYS.SPEED, SYS.COPYRIGHT ]:
-                self.data   = 0
-                self.length = ord( block[ 1 ] ) >> 1
-            elif self.type in [ SYS.TIMESTAMP, SYS.REFRESH_RATE ]:
-                self.data   = 0
-                self.length = 2
-            # endif       
-            decrypt = (False,False,False,False,True,False, True,True,False,True,True,True,False,False,False,False)[ self.type ]            
-        else:
-            if self.type == CAR.POSITION_HISTORY: 
-                self.data   = 0
-                self.length = ord( block[ 1 ] ) >> 1
-            elif self.type == CAR.POSITION_UPDATE:
-                self.data   = 0
-                self.length = 0
+                    if self.__theApp.loadingKeyframe:
+                        self.__theApp.interpolateNext    = True
+                    # end if                                                                
+                # end if
+                self.payload    = None
+            elif self.type == SYS.SPEED:
+                log.debug( "f1packet: SYS.SPEED" )
+                decrypt = True
+                self.payload = array.array( 'B', stream.read( self.value ) )
+            elif self.type == SYS.TRACK_STATUS:
+                log.debug( "f1packet: SYS.TRACK_STATUS" )
+                decrypt = True
+                self.payload = array.array( 'B', stream.read( self.length ) )
+            elif self.type == SYS.NOTICE:
+                self.__SwapValueLength()
+                log.debug( "f1packet: SYS.NOTICE" )
+                decrypt = True
+                self.payload = array.array( 'B', stream.read( self.length ) )
+            elif self.type == SYS.COPYRIGHT:
+                self.__SwapValueLength()
+                log.debug( "f1packet: SYS.COPYRIGHT length = %i" % ( self.length ) )
+                self.payload = array.array( 'B', stream.read( self.length ) )
+            elif self.type == SYS.COMMENTARY:
+                self.__SwapValueLength()
+                log.debug( "f1packet: SYS.COMMENTARY length = %i" % ( self.length ) )
+                self.payload = array.array( 'B', stream.read( self.length ) )
+                decrypt = True                                 
             else:
-                self.data     = ( ( ord( block[ 1 ] ) & 0x0E ) >> 1 )
-                if ( ord( block[ 1 ] ) & 0xF0 ) == 0xF0:
-                    self.length = 0   
-                else:
-                    self.length = ord( block[ 1 ] ) >> 4       
-                # endif
-            # endif
-            decrypt = (False,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True)[ self.type ]
-        # endif
-        if self.length > 0:
-            self.payload    = array.array( 'B', block[ 2 : self.length + 2 ] )
-        # endif
-        #
-        #   Find out if we need to decrypt the data
-        #
-        if len( self.payload ) > 0 and decrypt:
-            # self.decrypt()
-            self.payload = self.crypto.decryptBlock( self.payload )        
-            log.debug( "f1packet: decrypted type %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
+                # unhandled packet type
+                log.error( "f1packet: Unhandled packet type %i" %  ( self.type ) )                            
+            # end if                                            
         else:
-            log.debug( "f1packet: type: %i, car: %i, length: %i, data: %X, payload: %s" % ( self.type, self.car, self.length, self.data, self.payload2hexstr() ) )
-        # endif                    
-        return block[ self.length + 2: len( block ) ] 
+            if self.type == 0:
+                self.payload        = None           
+            elif self.type == 15:               
+                self.__SwapValueLength()
+                if self.length:                 
+                    self.payload    = array.array( 'B', stream.read( self.value ) )        
+                    decrypt         = True
+                else:
+                    self.payload    = None                
+                # end if
+            else:
+                decrypt             = True
+                if self.length:                 
+                    self.payload    = array.array( 'B', stream.read( self.length ) )               
+                else:
+                    self.payload    = None
+                # end if
+            # end if                
+        # end if
+        if decrypt and self.payload:
+            log.debug( "Decrypting : %s" % ( self.payload2hexstr() )  )
+            self.payload = self.crypto.decryptBlock( self.payload ) 
+        # end if                            
+        log.debug( "f1packet: type: %i, car: %i, length: %i, data: %X, payload: %s" % ( 
+                    self.type, self.car, self.length, self.data, self.payload2hexstr() ) )                   
+        return 
     # end def 
     
     def payload2hexstr( self, off = 0 ):
         hexstr = ""
-        for c in self.payload[ off : self.length ]:
-            hexstr = hexstr + "%02X " % ( c )
-        # next
+        if self.payload:
+            for c in self.payload[ off : self.length ]:
+                hexstr = hexstr + "%02X " % ( c )
+            # next
+        # end if            
         return hexstr 
     # end def
     
     def payload2str( self, off = 0 ):
         tmpstr = ""
-        for c in self.payload[ off : self.length ]:
-            tmpstr = tmpstr + "%c" % ( c )
-        # next
+        if self.payload:
+            for c in self.payload[ off : self.length ]:
+                tmpstr = tmpstr + "%c" % ( c )
+            # next
+        # end if            
         return tmpstr 
     # end def
             
     def payload2int( self, off = 0 ):
         val = 0
-        shift = 0
-        for c in self.payload[ off : self.length ]:
-            val = val | ( c << shift ) 
-            shift = shift + 8
-        # next            
+        if self.payload:
+            shift = 0
+            for c in self.payload[ off : self.length ]:
+                val = val | ( c << shift ) 
+                shift = shift + 8
+            # next            
+        # end if            
         return val
     # end def
 # end class
     
 globalvar.commentary    = f1commentary()
 globalvar.board         = f1Board()
+ 
+class f1Stream( object ):
+    def __init__( self ):
+        self.__data     = None
+        self.__length   = 0
+        self.__index    = 0
+        return
+
+    def Clear( self ):
+        self.__data     = None
+        self.__length   = 0
+        self.__index    = 0
+        return
+                
+    def len( self ):
+        return self.__length - self.__index                
+                
+    def Set( self, block, length = -1 ):
+        if length == -1:
+            length  = len( block )
+        # end if            
+        self.__data     = block
+        self.__length   = length
+        self.__index    = 0        
+        return
+    
+    def read( self, length ):
+        data = self.__data[ self.__index : self.__index + length ]
+        self.__index += length                                 
+        return data 
+ 
  
 class f1session( object ):
     auth_http_host		= 'live-timing.formula1.com'
@@ -232,8 +310,8 @@ class f1session( object ):
         self.__timestamp        = 0
         self.__comment          = f1text() 
         self.error              = 0
-        self.__block            = ""
-        self.__decryption_error = False
+        self.__stream           = f1Stream()
+        self.__decryption_error = 0
         self.__refreshRate      = 100
         self.__StoreData        = ( self.__theApp.config.get( 'keyframe', 'store' ) == "True" )
         self.__keyPath          = os.path.join( os.path.dirname( __file__ ), self.__theApp.config.get( 'keyframe', 'dir' ) )
@@ -275,7 +353,7 @@ class f1session( object ):
         log.debug( "RESP: %s" % ( response ) )
         # end if            
         if response[ 'status' ] == '200':
-            self.__theApp.hexDebug( "KEYFRAME", content )
+            # self.__theApp.hexDebug( "KEYFRAME", content )
             if self.__StoreData:
                 if self.keyframe:
                     self.keyframe.close()
@@ -303,7 +381,7 @@ class f1session( object ):
     def obtain_decryption_key( self ):
         url = "http://%s:%s%s%u.asp?auth=%s" % ( self.auth_http_host, self.auth_http_port, KEY_URL_BASE, self.eventid, self.__COOKIE_VALUE )
         response, content = self.__http.request( url, 'GET' )
-        log.debug( "RESP: %s" % ( response ) )
+        #log.debug( "RESP: %s" % ( response ) )
         log.debug( "DATA: %s" % ( content ) )
         if self.__StoreData:
             directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
@@ -327,7 +405,7 @@ class f1session( object ):
             if ( self.sock ):
                 self.error = self.sock.connect_ex( addr[ 4 ] );
                 log.debug( "open.connect_ex: %s" % ( self.error ) )
-                self.__decryption_error = False
+                self.__decryption_error = 0
                 if ( self.error == 0 ):
                     self.pollCount = 0
                     return True
@@ -356,7 +434,7 @@ class f1session( object ):
                     # end if
                     self.parse( buff )
                     self.__timer = 0
-                    if self.__decryption_error:
+                    if self.__decryption_error > 3:
                         poller.unregister( self.sock )
                         log.info( "Close : Due to decryption error" )
                         self.close()
@@ -387,7 +465,7 @@ class f1session( object ):
         # next    
         self.__timer = self.__timer + 1
         #log.debug( "Timeout : %i" % self.__timer )
-        if self.__timer < 10:
+        if self.__timer < 10:   # 10 seconds
             return True
         # endif
         # Timeout ?
@@ -396,11 +474,11 @@ class f1session( object ):
         #if ( self.pollCount % 10 ) == 0:
         #    globalvar.board.dump()
         # end if
-        if self.pollCount > 60:
+        if self.pollCount >= 60: # 600 seconds
             return False
         # endif
         length = self.sock.send( b )
-        log.debug( "Send : %s, length : %i, pollCount %i, refresh %i" % ( b, length, self.pollCount, self.__theApp.RefreshRate ) )
+        log.debug( "Send : %s, length : %i, pollCount %i, RefreshRate %i" % ( b, length, self.pollCount, self.__refreshRate ) )
         if length > 0:
             # Reset the timer value.
             self.__timer = 0
@@ -434,22 +512,29 @@ class f1session( object ):
     def HandleSysKeyFrame( self ):
         last    = self.frame 
         number = self.packet.payload2int()
-        #if self.__decryption_error:
+        log.debug( "Current keyframe: %i, requesting keyframe: %i" % ( self.frame, number ) )
+        #if self.__decryption_error > 3:
         #   self.frame = self.frame - 1  
         #   if self.frame < 0:
         #       self.frame = 0 
         #   # end if
-        # end if 
-        if self.frame <> number:
-            # now obtain the key
-            self.packet.crypto.reset()
-            self.__block = self.obtain_key_frame( number )
-            self.__decryption_error = False
-            self.packet.crypto.reset() 
+        # end if
+        length = 0 
         self.packet.crypto.reset()
+        if not self.frame == number:
+            # now obtain the key
+            log.info( "Loading new keyframe" )
+            block = self.obtain_key_frame( number )
+            length = len( block )                          
+            self.parse( block )
+            self.__decryption_error = 0
+            self.packet.crypto.reset() 
+        else:
+            log.info( "Stay at current keyframe" )                         
         # endif
         self.frame = number
-        log.info( "SYS.KEY_FRAME : %i (%X), last : %i (%X), block-length %i" % ( self.frame, self.frame, last, last, len( self.__block ) ) )
+        log.info( "SYS.KEY_FRAME : %i (%X), last : %i (%X), block-length %i" % ( 
+                        self.frame, self.frame, last, last, length ) )
         return        
     
     def HandleSysComment( self ):
@@ -547,17 +632,22 @@ class f1session( object ):
     def HandleSystemPacket( self ):
         if self.packet.type == SYS.EVENT_ID:
             self.HandleSysEventId()
+            return
         elif self.packet.type == SYS.KEY_FRAME:
-            self.HandleSysKeyFrame()      
+            self.HandleSysKeyFrame()
+            return      
         # endif
-        if self.__decryption_error:
+        if self.__decryption_error > 3:
             return
         elif self.packet.type == SYS.VALID_MARKER:
             log.info( "System.ValidMarker : data = %i, payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
         elif self.packet.type == SYS.COMMENTARY:
             self.HandleSysComment()                   
         elif self.packet.type == SYS.REFRESH_RATE:
-            self.__refreshRate = self.packet.payload2int()            
+            self.__refreshRate = self.packet.payload2int()
+            if self.__refreshRate == 0:
+                self.__refreshRate  = 1000;
+            # end if                                         
             log.warning( "System.RefreshRate data = %i : payload = %i" % ( self.packet.data, self.__refreshRate ) )
         elif self.packet.type == SYS.NOTICE:
             log.info( "System.Notice : data = %i = payload = %s" % ( self.packet.data, self.packet.payload2str() ) )
@@ -599,47 +689,47 @@ class f1session( object ):
             #
             #
             log.info( "Race position car: %i, data: %i, position: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPosition( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverPosition( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.RACE_DRIVER[ event ]:
             #
             #
             #
             log.info( "Driver name car: %i, data: %i, name: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverName( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverName( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.DRIVER_NUMBER[ event ]:
             #
             #
             #
             log.info( "Driver number car: %i, data: %i, number: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverNo( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverNo( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.GAP[ event ]:
             #
             #
             #
             log.info( "Gap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverGap( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverGap( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.LAP[ event ]:
             #
             #
             #
             log.info( "Lap: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverLap( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverLap( self.packet.car, self.packet.data, text )
         elif self.packet.type == CAR.LAP_TIME[ event ]:
             #
             #
             #
             log.info( "Laptime: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverLaptime( self.packet.car, self.packet.data, text )
+            self.__decryption_error += globalvar.board.setDriverLaptime( self.packet.car, self.packet.data, text )
 
         elif self.packet.type == CAR.INTERVAL[ event ]:
             #
             #
             #
             log.info( "Interval: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverInterval( self.packet.car, self.packet.data, text )
-            if not self.__decryption_error and event == f1TrackStatus.RACE_EVENT:
+            self.__decryption_error += globalvar.board.setDriverInterval( self.packet.car, self.packet.data, text )
+            if self.__decryption_error <= 3 and event == f1TrackStatus.RACE_EVENT:
                 globalvar.board.UpdateDriverGap()
             # end if
         elif self.packet.type == CAR.SECTOR_1[ event ]:
@@ -647,8 +737,8 @@ class f1session( object ):
             #
             #
             log.info( "Sector-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 0, text )
-            if not self.__decryption_error:
+            self.__decryption_error += globalvar.board.setDriverSector( self.packet.car, self.packet.data, 0, text )
+            if self.__decryption_error <= 3:
                 globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, "" ) 
                 globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, "" )
             # end if
@@ -657,8 +747,8 @@ class f1session( object ):
             #
             #
             log.info( "Sector-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, text )
-            if not self.__decryption_error:
+            self.__decryption_error += globalvar.board.setDriverSector( self.packet.car, self.packet.data, 1, text )
+            if self.__decryption_error <= 3:
                 globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, "" )
             # end if
         elif self.packet.type == CAR.SECTOR_3[ event ]:
@@ -666,42 +756,42 @@ class f1session( object ):
             #
             #
             log.info( "Sector-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, text )
+            self.__decryption_error += globalvar.board.setDriverSector( self.packet.car, self.packet.data, 2, text )
 
         elif self.packet.type == CAR.PIT_LAP_1[ event ]:
             #
             #
             #
             log.info( "Pit-lap-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 0, text )
+            self.__decryption_error += globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 0, text )
 
         elif self.packet.type == CAR.PIT_LAP_2[ event ]:
             #
             #
             #
             log.info( "Pit-lap-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 1, text )
+            self.__decryption_error += globalvar.board.setDriverPitLap( self.packet.car, self.packet.data, 1, text )
             
         elif self.packet.type == CAR.PERIOD_1[ event ]:
             #
             #
             #
             log.info( "Period-1: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 0, text )
+            self.__decryption_error += globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 0, text )
             
         elif self.packet.type == CAR.PERIOD_2[ event ]:
             #
             #
             #
             log.info( "Period-2: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 1, text )
+            self.__decryption_error += globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 1, text )
                                             
         elif self.packet.type == CAR.PERIOD_3[ event ]:
             #
             #
             #
             log.info( "Period-3: car %i, data: %i, payload: %s" % ( self.packet.car, self.packet.data, text ) )
-            self.__decryption_error = not globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 2, text )
+            self.__decryption_error += globalvar.board.setDriverPeriod( self.packet.car, self.packet.data, 2, text )
             
         elif self.packet.type == CAR.POSITION_HISTORY:  # pos history 
             #
@@ -715,16 +805,18 @@ class f1session( object ):
             #
             log.error( "Unknown CAR packet data : %s" % ( self.packet.payload2hexstr() ) )
         # endif
-        if self.__decryption_error:        
+        if self.__decryption_error > 3:        
             log.error( "DECRYPTION ERROR !!!!!!!!!!!!!" )
             # Clear the data, we need to re-load the stream
             self.__block = ""
+            exit()
         # endif     
         return;
 
     def parse( self, block ):
-        self.__block = block
-        while len( self.__block ) and not self.__decryption_error: 
+        self.__stream.Set( block )
+        
+        while self.__stream.len() and self.__decryption_error <= 3: 
             if 0:            
                 hexstr = ""
                 cnt = 0
@@ -737,7 +829,7 @@ class f1session( object ):
                 # next
                 log.debug( "Stream data: {%s}" % hexstr )
             # endif                
-            self.__block = self.packet.set( self.__block )
+            self.packet.set( self.__stream )
             if self.packet.length > 2 and self.packet.car == 0 and self.packet.type == SYS.COMMENTARY:             
                 if self.packet.payload[2] < 0x20 or self.packet.payload[2] > 0x7E:
                     return
