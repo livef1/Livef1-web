@@ -100,9 +100,9 @@ class SYS_SPEED( object ):
 
 class f1packet( object ):
     def __init__( self, theApp ):
-        self.car                = 0;
-        self.type               = 0;
-        self.length             = 0;
+        self.car                = 0
+        self.type               = 0
+        self.length             = 0
         self.data               = 0
         self.payload            = bytes()
         self.__theApp           = theApp
@@ -118,23 +118,22 @@ class f1packet( object ):
         
     def set( self, stream ):
         if stream.len() < 2:
-            self.type = 0;            
+            self.type       = 0
+            self.car        = 0
+            self.type       = 0
+            self.length     = 0
+            self.data       = 0
+            self.payload    = None            
             return ''
         # end if 
         block = stream.read( 2 )
         b0 = ord(block[ 0 ])         
         b1 = ord(block[ 1 ])
-        
         self.car        = ( b0 & 0x1F );
         self.type       =  ( ( b0 & 0xE0 ) >> 5 & 0x7 | ( b1 & 0x1) << 3 );
         self.data       =  ( ( b1 & 0x0E ) >> 1 );
         self.length     =  ( ( b1 & 0xF0 ) >> 4 );
         self.value      =  ( ( b1 & 0xFE ) >> 1 );        
-        #if len( block ) < l + 2:
-        #    return block 
-        # end if
-        log.debug( "f1packet: (%X,%X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
-                            b0, b1, self.type, self.car, self.data, self.length, self.value ) )
         decrypt = False                                    
         if self.car == 0:
             if self.type == SYS.EVENT_ID:
@@ -214,12 +213,13 @@ class f1packet( object ):
                 # end if
             # end if                
         # end if
+        log.debug( "f1packet: (%X,%X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
+                            b0, b1, self.type, self.car, self.data, self.length, self.value ) )
+
         if decrypt and self.payload:
-            log.debug( "Decrypting : %s" % ( self.payload2hexstr() )  )
             self.payload = self.crypto.decryptBlock( self.payload ) 
+            log.debug( "Decrypted : %s" % ( self.payload2hexstr() )  )
         # end if                            
-        log.debug( "f1packet: type: %i, car: %i, length: %i, data: %X, payload: %s" % ( 
-                    self.type, self.car, self.length, self.data, self.payload2hexstr() ) )                   
         return 
     # end def 
     
