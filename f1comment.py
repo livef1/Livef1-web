@@ -34,7 +34,7 @@ __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
 
-log  = logging.getLogger('live-f1')
+log  = logging.getLogger( 'live-f1' )
 
 class f1text( object ):
     def __init__( self, ts = 0, c = '', t = '' ):
