@@ -43,28 +43,20 @@ class f1Position( object ):
     # end def
 
     def reset( self ):
-        self.__number     = f1Item()
-        self.__name       = f1Item()
-        self.__interval   = f1Item()
-        self.__laptime    = f1Item()
-        self.__sector     = [ f1Item(), f1Item(), f1Item() ]
-        self.__lap        = f1Item()
-        self.__gap        = f1Item()
-        self.__position   = f1Item()
-        self.__pitLap     = [ f1Item(), f1Item(), f1Item() ]
-        self.__period     = [ f1Item(), f1Item(), f1Item() ]
+        self.__position         = f1Item( 'car_position', 0 )
+        self.__number           = f1Item( 'driver_number', 0 )
+        self.__name             = f1Item( 'driver_name' )
+        self.__interval         = f1Item( 'interval' )
+        self.__laptime          = f1Item( 'laptime' )
+        self.__sector           = [ f1Item( 'sector1' ), f1Item( 'sector2' ), f1Item( 'sector3' ) ]
+        self.__lap              = f1Item( 'driver_lap' )
+        self.__gap              = f1Item( 'gap' )
+        self.__stops            = f1Item( 'stops', 0 )
+        self.__pitLap           = [ f1Item( 'pitlap1' ), f1Item( 'pitlap2' ), f1Item( 'pitlap3' ) ]
+        self.__period           = [ f1Item( 'q1' ), f1Item( 'q2' ), f1Item( 'q3' ) ]
         return 
     # end def
 
-    def setNumber( self, data, number ):
-        self.__number.data  = data  
-        self.__number.value = number
-        return
-        
-    def getNumber( self ):
-        return self.__number
-    # end def
-    
     def setPosition( self, data, number ):
         self.__position.data  = data  
         self.__position.value = number
@@ -74,7 +66,27 @@ class f1Position( object ):
     def getPosition( self ):
         return self.__position   
     # end def
+
+    def setNumber( self, data, number ):
+        if self.__number.data == 4 and self.__number.data != data:
+            if event == f1TrackStatus.RACE_EVENT:
+                # Driver was in the pit 
+                self.__stops.data   = data
+                self.__stops.value  += 1
+            # end if                
+        # end if               
+        self.__number.data  = data  
+        self.__number.value = number
+        return
         
+    def getNumber( self ):
+        return self.__number
+    # end def
+
+    def getStops( self ):
+        return self.__stops
+    # end def
+
     def setName( self, data, name ):
         self.__name.data  = data  
         self.__name.value = name
@@ -162,60 +174,41 @@ class f1Position( object ):
             if mode == 9:
                 return True
             #endif
-             
         #endif
         return False
     # end def
 
     def gethtml( self, event ):
-        output = '''<tr><td class="car_position" id="status_data_%02X">%s</td> 
-                        <td class="driver_number" id="status_data_%02X">%s</td>
-                        <td class="driver_name" id="status_data_%02X">%s</td>''' % (      
-                           self.__position.data,    self.__position.value,   
-                           self.__number.data,      self.__number.value,     
-                           self.__name.data,        self.__name.value )      
+        output = '''<tr>%s%s%s''' % ( self.__position.getHtml(), self.__number.getHtml(),
+                                        self.__name.getHtml() )                           
         if event == f1TrackStatus.RACE_EVENT:
-            output = output + '''<td class="laptime"  id="status_data_%02X">%s</td>
-                                 <th class="interval" id="status_data_%02X">%s</th>
-                                 <th class="gap"      id="status_data_%02X">%s</th>
-                                 <td class="sector1" id="status_data_%02X">%s</td>
-                                 <td class="sector2" id="status_data_%02X">%s</td>
-                                 <td class="sector3" id="status_data_%02X">%s</td>
-                                 <td class="driver_lap" id="status_data_%02X">%s</td>''' % (    
-                                    self.__laptime.data,        self.__laptime.value,
-                                    self.__interval.data,       self.__interval.value,
-                                    self.__gap.data,            self.__gap.value,                                                                                  
-                                    self.__sector[ 0 ].data,    self.__sector[ 0 ].value,  
-                                    self.__sector[ 1 ].data,    self.__sector[ 1 ].value,  
-                                    self.__sector[ 2 ].data,    self.__sector[ 2 ].value,  
-                                    self.__lap.data,            self.__lap.value )   
+            output = output + '''%s %s %s %s %s %s %s''' % (
+                                    self.__laptime.getHtml(),       self.__interval.getHtml(),
+                                    self.__gap.getHtml(),           self.__sector[ 0 ].getHtml(),  
+                                    self.__sector[ 1 ].getHtml(),   self.__sector[ 2 ].getHtml(),  
+                                    self.__lap.getHtml() )            
+
         elif event == f1TrackStatus.PRACTICE_EVENT:
-            output = output + '''<td class="laptime" id="status_data_%02X">%s</td>
-                                 <td class="sector1" id="status_data_%02X">%s</td>
-                                 <td class="sector2" id="status_data_%02X">%s</td>
-                                 <td class="sector3" id="status_data_%02X">%s</td>
-                                 <td class="driver_lap" id="status_data_%02X">%s</td>''' % (    
-                                    self.__laptime.data,        self.__laptime.value,    
-                                    self.__sector[ 0 ].data,    self.__sector[ 0 ].value,  
-                                    self.__sector[ 1 ].data,    self.__sector[ 1 ].value,  
-                                    self.__sector[ 2 ].data,    self.__sector[ 2 ].value,  
-                                    self.__lap.data,            self.__lap.value )   
+            output = output + '''%s %s %s %s %s''' % (    
+                                    self.__laptime.getHtml(),       self.__sector[ 0 ].getHtml(),  
+                                    self.__sector[ 1 ].getHtml(),   self.__sector[ 2 ].getHtml(),  
+                                    self.__lap.getHtml() )   
         elif event == f1TrackStatus.QUALIFYING_EVENT: 
-            output = output + '''<td class="q1" id="status_data_%02X">%s</td>
-                                 <td class="q2" id="status_data_%02X">%s</td>
-                                 <td class="q3" id="status_data_%02X">%s</td>
-                                 <td class="sector1" id="status_data_%02X">%s</td>
-                                 <td class="sector2" id="status_data_%02X">%s</td>
-                                 <td class="sector3" id="status_data_%02X">%s</td>
-                                 <td class="driver_lap" id="status_data_%02X">%s</td>''' % (
-                                    self.__period[ 0 ].data,    self.__period[ 0 ].value,
-                                    self.__period[ 1 ].data,    self.__period[ 1 ].value,
-                                    self.__period[ 2 ].data,    self.__period[ 2 ].value,
-                                    self.__sector[ 0 ].data,    self.__sector[ 0 ].value,
-                                    self.__sector[ 1 ].data,    self.__sector[ 1 ].value,
-                                    self.__sector[ 2 ].data,    self.__sector[ 2 ].value,
-                                    self.__lap.data,            self.__lap.value )
+            output = output + '''%s %s %s %s %s %s %s''' % (
+                                    self.__period[ 0 ].getHtml(),   self.__period[ 1 ].getHtml(),
+                                    self.__period[ 2 ].getHtml(),   self.__sector[ 0 ].getHtml(),
+                                    self.__sector[ 1 ].getHtml(),   self.__sector[ 2 ].getHtml(),
+                                    self.__lap.getHtml() )
         # endif
-        output = output + "</tr>"                                
-        return output
+        return output + "</tr>"
     # end def
+    
+    def getHtmlFastest( self ):
+        return """<div class="fastestlap"><table border="0" ><thead>
+					<th class="driver_number" id="head_color">Nr.</th>
+					<th class="driver_name" id="head_color">Driver</th>
+					<th class="driver_lap" id="head_color" >On lap</th>
+					<th class="laptime" id="head_color" width="180" >Lap Time</th>
+				</thead>
+				<tbody><tr>%s %s %s %s</tr>""" % (  self.__number.getHtml(),   self.__name.getHtml(), 
+		                                            self.__lap.getHtml(),     self.__laptime.getHtml() )

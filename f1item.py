@@ -29,9 +29,10 @@ import logging
 log  = logging.getLogger('live-f1')
 
 class f1Item( object ):
-    def __init__( self ):
-        self.__data = 0
-        self.__value = ""
+    def __init__( self, _name, _value = '', _data = 0 ):
+        self.__data     = _data
+        self.__value    = _value
+        self.__name     = _name
         return;
     # end def
     
@@ -49,9 +50,22 @@ class f1Item( object ):
     # end def
         
     def __setValue( self, d ):
-        self.__value = d
+        if type( self.__value ) == "<type 'int'>":
+            if d.isdigit():             
+                self.__value = int( d )
+            else:
+                self.__value = 0            
+            # end if            
+        else:             
+            self.__value = d
         return         
     # end def
 
     data    = property( __getData, __setData )
     value   = property( __getValue, __setValue )
+
+    def getHtml( self ):
+        if type( self.__value ) == "<type 'int'>":
+            return "<td class='%s' id='status_data_%02X'> %i </td>" % ( self.__name, self.__data, self.__value )    
+        # end if        
+        return "<td class='%s' id='status_data_%02X'> %s </td>" % ( self.__name, self.__data, self.__value )

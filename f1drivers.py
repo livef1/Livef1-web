@@ -39,7 +39,7 @@ log  = logging.getLogger('live-f1')
 
 def isprint( _str ):
     for x in _str:
-        if ord(x) < 0x20 or ord(x) > 0x7F:    
+        if x < ' ' or x > '~':    
             return False 
         # end if
     # end for
@@ -49,6 +49,7 @@ def isnumber( _str ):
     for x in _str:
         if x == '.':
             continue
+        # end if
         if ( x < '0' or x > '9' ):    
             return False 
         # end if
@@ -56,27 +57,25 @@ def isnumber( _str ):
     return True
     
 def istime( _time ):
-    for x in _time:
-        i = ord( x )        
+    for x in _time:       
         if x == '.' or x == ':':
             continue
-        if i < 0x30 or i > 0x39:    
+        # end if            
+        if x < '0' or x > '9':    
             return False 
         # end if
     # end for
     return True
     
 def issector( _sect ):
+    """
+        This is just a fix, because now the sector times are no longer provided.
+        via the free live timing interface.  
+    """
     if _sect == '\xE2\x97\x8F':
         return True
     # end if
-    for x in _sect:
-        i = ord( x )        
-        if ( ( i < 0x30 or i > 0x39 ) and not x == '.' and not x == ':' ):    
-            return False 
-        # end if
-    # end for
-    return True
+    return isnumber( _sect )
 
 class f1Board( object ):
     def __init__( self ):
@@ -258,7 +257,7 @@ class f1Board( object ):
                     prevrec = self.__cars[ prev ] 
                 else:
                     prevrec = None                                                      
-                log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
+                #log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
                 curr_rec = self.__cars[ car-1 ] 
                 value = curr_rec.getInterval()                 
                 if not value.value == '' and not 'L' in value.value:                
@@ -368,33 +367,16 @@ class f1Board( object ):
         #endif
         output = output + "</thead><tbody>"            
         # log.info( "cars : %s" % ( cnt ) ) 
-        for pos in range( self.__maxCars ):
+        for pos in range( 1, self.__maxCars ):
             for item in self.__cars:
-                if str( item.getPosition().value ) == str( pos ):
+                if int( item.getPosition().value ) == pos:
                     output = output + item.gethtml( globalvar.TrackStatus.Event ) 
                 # endif
             # next
         # next
         output = output + """</tbody></table>"""
         if globalvar.TrackStatus.Event == f1TrackStatus.RACE_EVENT:
-            output = output + """<div class="fastestlap"><table border="0" ><thead>
-					<th class="driver_number" id="head_color">Nr.</th>
-					<th class="driver_name" id="head_color">Driver</th>
-					<th class="driver_lap" id="head_color" >On lap</th>
-					<th class="laptime" id="head_color" width="180" >Lap Time</th>
-				</thead>
-				<tbody>""" 
-            if self.__fastest.isValid( 9 ):
-                output = output + """<tr>
-						      <td class="driver_number" >%s</td>
-						      <td class="driver_name" >%s</td>
-						      <td class="driver_lap" align='right'>%s</td>
-						      <td class="laptime" align='right'>%s</td>
-					       </tr>""" % (   self.__fastest.getNumber().value, 
-		                                  self.__fastest.getName().value, 
-		                                  self.__fastest.getLap().value, 
-		                                  self.__fastest.getLaptime().value )
-            # endif					
+            output = output + self.__fastest.getHtmlFastest()
             output = output + """</tbody></table></div>"""
         # endif                  
         output = output + "</div>"   
