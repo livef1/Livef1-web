@@ -357,23 +357,18 @@ class f1session( object ):
             if self.__StoreData:
                 if self.keyframe:
                     self.keyframe.close()
-                    self.keyframe = None                    
                 # end if
-                directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
+                self.keyframe = None                    
+                directory = os.path.join( self.__keyPath, "%s-E%06i" % ( globalvar.TrackStatus.EventStr, globalvar.TrackStatus.EventId ) )
+                directory = os.path.join( directory, "F%06i" % ( self.frame ) )
                 if not os.path.exists( directory ):
                     os.makedirs( directory )
                 # end if
                 filename = os.path.join( directory, 'keyframe_http_%04X.bin' % self.__timestamp ) 
-                if not os.path.isfile( filename ):               
-                    self.keyframe = open( filename, 'wb+', 0 )
-                    self.keyframe.write( content )
-                    self.keyframe.close()
-                    self.keyframe = None
-                # end if 
-                filename = os.path.join( directory, 'keyframe_ts_%04X.bin' % self.__timestamp ) 
-                if not os.path.isfile( filename ):               
-                    self.keyframe = open( filename, 'wb+', 0 )
-                # end if                    
+                self.keyframe = open( filename, 'wb+', 0 )
+                self.keyframe.write( content )
+                self.keyframe.close()
+                self.keyframe = None
             # end if
             return content           
         return "" 
@@ -384,7 +379,8 @@ class f1session( object ):
         #log.debug( "RESP: %s" % ( response ) )
         log.debug( "DATA: %s" % ( content ) )
         if self.__StoreData:
-            directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
+            directory = os.path.join( self.__keyPath, "%s-E%06i" % ( globalvar.TrackStatus.EventStr, globalvar.TrackStatus.EventId ) )
+            directory = os.path.join( directory, "F%06i" % ( self.frame ) )
             if not os.path.exists( directory ):
                 os.makedirs( directory )
             filename = os.path.join( directory, 'keyframe.key' )
@@ -428,9 +424,30 @@ class f1session( object ):
             if flag & select.POLLIN:
                 buff = fd_to_socket[ fd ].recv( 512 );
                 if buff:
-                    # data
-                    if self.keyframe: 
-                        self.keyframe.write( buff )
+                    """
+                        Do we need to store data and do we have data ? 
+                    """
+                    if self.__StoreData and len( buff ):
+                        """
+                            Is the keyframe file not open?
+                        """
+                        if not self.keyframe:
+                            directory = os.path.join( self.__keyPath, "%s-E%06i" % ( globalvar.TrackStatus.EventStr, self.eventid ) )
+                            directory = os.path.join( directory, "F%06i" % ( self.frame ) )
+                            if not os.path.exists( directory ):
+                                os.makedirs( directory )
+                            # end if
+                            filename = os.path.join( directory, 'keyframe_ts_%04X.bin' % self.__timestamp ) 
+                            self.keyframe = open( filename, 'wb+', 0 )
+                        else:
+                            log.info( "Keyfile : already open" )
+                        # end if
+                        if len( buff ):
+                            """
+                                Write the data to the file                        
+                            """                    
+                            self.keyframe.write( buff )
+                        # end if
                     # end if
                     self.parse( buff )
                     self.__timer = 0
@@ -495,11 +512,12 @@ class f1session( object ):
             log.info( "SYS.EVENT_ID : (str) %s" % ( self.packet.payload2str( 1 ) ) )
             if self.packet.payload[ 1 ] == 0x5F:
                 log.info( "SYS.EVENT_ID : (date) %s" % ( self.packet.payload2str( 2 ) ) )
+                self.eventid        = int( str( self.packet.payload[ 2: ] ) )
             else:
                 self.eventid        = int( self.packet.payload2str( 1 ) )
                 globalvar.TrackStatus.reset()                    
-                globalvar.TrackStatus.Event	= self.packet.data
-                globalvar.TrackStatus.EventId  = self.eventid
+                globalvar.TrackStatus.Event     = self.packet.data
+                globalvar.TrackStatus.EventId   = self.eventid
                 globalvar.commentary.reset()
                 log.info( "SYS.EVENT_ID : %i" % ( self.eventid ) )
                 self.packet.crypto.setKey( int( self.obtain_decryption_key(), 16 ) )                        
@@ -511,16 +529,17 @@ class f1session( object ):
     
     def HandleSysKeyFrame( self ):
         last    = self.frame 
-        number = self.packet.payload2int()
+        number  = self.packet.payload2int()
         log.debug( "Current keyframe: %i, requesting keyframe: %i" % ( self.frame, number ) )
-        #if self.__decryption_error > 3:
-        #   self.frame = self.frame - 1  
-        #   if self.frame < 0:
-        #       self.frame = 0 
-        #   # end if
-        # end if
-        length = 0 
         self.packet.crypto.reset()
+        """        
+            Close the keyframe file, because wher're switching to a new frame  
+        """
+        if self.keyframe: 
+            self.keyframe.close()
+            self.keyframe   = None
+        # endif            
+        length = 0
         if not self.frame == number:
             # now obtain the key
             log.info( "Loading new keyframe" )
@@ -611,20 +630,6 @@ class f1session( object ):
         # endif
         log.info( "System.TimeStamp : %i = %02i:%02i:%02i" % ( 
                 self.__timestamp, hours, mins, secs ) )
-        if self.__StoreData:
-            if self.keyframe:
-                self.keyframe.close()
-                self.keyframe = None
-            # end if
-            directory = os.path.join( self.__keyPath, "F%06i" % ( self.frame ) )
-            if not os.path.exists( directory ):
-                os.makedirs( directory )
-            # end if
-            filename = os.path.join( directory, 'keyframe_ts_%04X.bin' % self.__timestamp ) 
-            if not os.path.isfile( filename ):               
-                self.keyframe = open( filename, 'wb+', 0 )
-            # end if
-        # end if
         return
     #
     #   

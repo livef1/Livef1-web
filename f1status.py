@@ -86,7 +86,10 @@ class f1TrackStatus(object):
         self.__Status = val
         return
     # end def
-
+    
+    def __getEventStr( self ):
+        return self.events[ self.__Event ]            
+    
     def __getLap( self ):
         return self.__Lap
     # end def
@@ -200,3 +203,5 @@ class f1TrackStatus(object):
     Flag        = property( __getFlag,      __setFlag )
     Copyright   = property( __getCopyright, __setCopyright )
     Notice      = property( __getNotice,    __setNotice )
+    EventStr    = property( __getEventStr )
+
