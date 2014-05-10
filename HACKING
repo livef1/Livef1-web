@@ -1,0 +1,11 @@
+Livef1-web needs Python version 2.7.x and the following modules;
+* Python 2.7.4
+* httplib2-0.9
+* CherryPy-3.3.0
+
+If you have good additions, email me and i'll review them when a proved i'll commit them to GIT.
+When you sent me make sure that the patch is against the latest source on GIT, otherwise i'll 
+reject the patch right a way.
+
+
+
