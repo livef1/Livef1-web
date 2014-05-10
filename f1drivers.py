@@ -244,6 +244,7 @@ class f1Board( object ):
         """
             All this is fussy-logic to restore the items the live timing interface no longer supplies 
         """
+        return
         gap = 0.0
         behind = 0
         prev = None
@@ -252,12 +253,12 @@ class f1Board( object ):
             if not car == 0:
                 if pos == 1:
                     pole    = car - 1
-                # end if      
+                # end if                          
                 if not prev == None:
                     prevrec = self.__cars[ prev ] 
                 else:
                     prevrec = None                                                      
-                #log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
+                log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
                 curr_rec = self.__cars[ car-1 ] 
                 value = curr_rec.getInterval()                 
                 if not value.value == '' and not 'L' in value.value:                
