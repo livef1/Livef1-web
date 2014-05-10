@@ -135,6 +135,7 @@ class f1packet( object ):
         self.length     =  ( ( b1 & 0xF0 ) >> 4 );
         self.value      =  ( ( b1 & 0xFE ) >> 1 );        
         decrypt = False                                    
+        result = True
         if self.car == 0:
             if self.type == SYS.EVENT_ID:
                 self.payload    = array.array( 'B', stream.read( self.length ) )
@@ -170,7 +171,8 @@ class f1packet( object ):
             elif self.type == SYS.SPEED:
                 log.debug( "f1packet: SYS.SPEED" )
                 decrypt = True
-                self.payload = array.array( 'B', stream.read( self.value ) )
+                self.__SwapValueLength()
+                self.payload = array.array( 'B', stream.read( self.length ) )
             elif self.type == SYS.TRACK_STATUS:
                 log.debug( "f1packet: SYS.TRACK_STATUS" )
                 decrypt = True
@@ -191,7 +193,8 @@ class f1packet( object ):
                 decrypt = True                                 
             else:
                 # unhandled packet type
-                log.error( "f1packet: Unhandled packet type %i" %  ( self.type ) )                            
+                log.error( "f1packet: Unhandled packet type %i" %  ( self.type ) )
+                result = False                                            
             # end if                                            
         else:
             if self.type == 0:
@@ -199,7 +202,8 @@ class f1packet( object ):
             elif self.type == 15:               
                 self.__SwapValueLength()
                 if self.length:                 
-                    self.payload    = array.array( 'B', stream.read( self.value ) )        
+                    self.payload    = array.array( 'B', stream.read( self.value ) )
+                    self.length     = self.value        
                     decrypt         = True
                 else:
                     self.payload    = None                
@@ -207,20 +211,21 @@ class f1packet( object ):
             else:
                 decrypt             = True
                 if self.length:                 
-                    self.payload    = array.array( 'B', stream.read( self.length ) )               
+                    self.payload    = array.array( 'B', stream.read( self.length ) )              
                 else:
                     self.payload    = None
                 # end if
             # end if                
         # end if
-        log.debug( "f1packet: (%X,%X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
+
+        log.debug( "f1packet: (%02X,%02X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
                             b0, b1, self.type, self.car, self.data, self.length, self.value ) )
 
-        if decrypt and self.payload:
+        if decrypt and self.payload and self.length:
             self.payload = self.crypto.decryptBlock( self.payload ) 
             log.debug( "Decrypted : %s" % ( self.payload2hexstr() )  )
         # end if                            
-        return 
+        return result
     # end def 
     
     def payload2hexstr( self, off = 0 ):
@@ -287,8 +292,13 @@ class f1Stream( object ):
     def read( self, length ):
         data = self.__data[ self.__index : self.__index + length ]
         self.__index += length                                 
+        hexstr = ''
+        for c in data:
+            hexstr += "%02X " % ( ord( c ) & 0xFF )
+        # next                         
+        log.debug( "read[%i,%i]: %s" % ( self.__length, self.__index - length, hexstr ) )
         return data 
- 
+    
  
 class f1session( object ):
     auth_http_host		= 'live-timing.formula1.com'
@@ -419,7 +429,8 @@ class f1session( object ):
         fd_to_socket = { self.sock.fileno(): self.sock, }
         poller = select.poll() 
         poller.register( self.sock, select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLNVAL )
-        events = poller.poll( self.__refreshRate )
+        # log.debug( "read->poll( %i )" % 1 )        
+        events = poller.poll( 100 )
         for fd, flag in events:
             if flag & select.POLLIN:
                 buff = fd_to_socket[ fd ].recv( 512 );
@@ -427,6 +438,11 @@ class f1session( object ):
                     """
                         Do we need to store data and do we have data ? 
                     """
+                    #hexstr = ''
+                    #for c in buff:
+                    #    hexstr += "%02X " % ( ord( c ) & 0xFF )
+                    # next                         
+                    #log.debug( "RECV: %s" % ( hexstr ) )
                     if self.__StoreData and len( buff ):
                         """
                             Is the keyframe file not open?
@@ -481,7 +497,7 @@ class f1session( object ):
             # endif
         # next    
         self.__timer = self.__timer + 1
-        #log.debug( "Timeout : %i" % self.__timer )
+        # log.debug( "Timeout : %i" % self.__timer )
         if self.__timer < 10:   # 10 seconds
             return True
         # endif
@@ -494,6 +510,9 @@ class f1session( object ):
         if self.pollCount >= 60: # 600 seconds
             return False
         # endif
+        """
+            Send PING to server 
+        """
         length = self.sock.send( b )
         log.debug( "Send : %s, length : %i, pollCount %i, RefreshRate %i" % ( b, length, self.pollCount, self.__refreshRate ) )
         if length > 0:
@@ -600,7 +619,7 @@ class f1session( object ):
             log.info( "System.Speed, lap number : %s" % ( self.packet.payload2str( 1 ) ) )
             globalvar.board.setFastestDriverLap( self.packet.car, self.packet.data, self.packet.payload2str( 1 ) )
         else:
-            globalvar.log.error( "System.Speed (%X) unhandled : %s" % ( number, self.packet.payload2hexstr( 1 ) ) )
+            log.error( "System.Speed (%X) unhandled : %s" % ( number, self.packet.payload2hexstr( 1 ) ) )
         # endif
         return        
     
@@ -809,12 +828,12 @@ class f1session( object ):
             #
             #
             log.error( "Unknown CAR packet data : %s" % ( self.packet.payload2hexstr() ) )
+            self.__decryption_error += 1
         # endif
         if self.__decryption_error > 3:        
             log.error( "DECRYPTION ERROR !!!!!!!!!!!!!" )
             # Clear the data, we need to re-load the stream
             self.__block = ""
-            exit()
         # endif     
         return;
 
@@ -834,7 +853,9 @@ class f1session( object ):
                 # next
                 log.debug( "Stream data: {%s}" % hexstr )
             # endif                
-            self.packet.set( self.__stream )
+            if not self.packet.set( self.__stream ):
+                self.__decryption_error += 1
+            # end if                 
             if self.packet.length > 2 and self.packet.car == 0 and self.packet.type == SYS.COMMENTARY:             
                 if self.packet.payload[2] < 0x20 or self.packet.payload[2] > 0x7E:
                     return
