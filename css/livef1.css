@@ -515,6 +515,123 @@ div.trailer
 
 #status_data_0F
 {
-    background-color:green;
-	color:		White;
+    background-color:  green;
+	color:		       White;
+}
+
+/*
+*   The setting page
+*/
+.settings
+{
+    width:             95%;
+	float:             left;
+	width:             99.5%;
+	background-color:  black;
+	color:		       white;
+	padding-left:      5px;
+	min-height:        90%;
+	height:            90%;
+	max-height:        90%;
+    overflow-y:        scroll;    
+}
+
+.setLine
+{
+}
+
+.setHead
+{
+	background-color:  black;
+	color:		       yellow;   
+}
+
+/*
+*   This is left column title for a field when using a table with fields  
+*/
+.setSubTableLabel
+{
+    width:             200px;
+    vertical-align:    top;
+    padding-top:       7px; 
+}
+
+/*
+*   This is right column for a table of fields   
+*/
+.setSubTable
+{
+    vertical-align:    top;
+}
+
+.setTableFieldLabel
+{
+    width:             200px;
+}
+
+.setTableField
+{
+   
+}
+
+#logdir
+{
+    column-span: 2; /* W3C */
+    -webkit-column-span: 2; /* Safari & Chrome */
+    -moz-column-span: 2; /* Firefox */
+    -ms-column-span: 2; /* Internet Explorer */
+    -o-column-span: 2; /* Opera */
+}
+
+#logfile
+{
+    column-span: 2; /* W3C */
+    -webkit-column-span: 2; /* Safari & Chrome */
+    -moz-column-span: 2; /* Firefox */
+    -ms-column-span: 2; /* Internet Explorer */
+    -o-column-span: 2; /* Opera */
+}
+
+#logsize
+{
+       width:             110px; 
+}
+
+#logbackup
+{
+    column-span: 2; /* W3C */
+    -webkit-column-span: 2; /* Safari & Chrome */
+    -moz-column-span: 2; /* Firefox */
+    -ms-column-span: 2; /* Internet Explorer */
+    -o-column-span: 2; /* Opera */
+}
+
+#loglevel
+{
+    column-span: 2; /* W3C */
+    -webkit-column-span: 2; /* Safari & Chrome */
+    -moz-column-span: 2; /* Firefox */
+    -ms-column-span: 2; /* Internet Explorer */
+    -o-column-span: 2; /* Opera */
+}
+
+/*
+*   This is left column title for a field
+*/
+.setFieldLabel
+{
+    width:             406px;
+}
+
+/*
+*   This is right column for a fields   
+*/
+.setField
+{
+    
+}
+
+.setFieldAdd
+{
+    
 }

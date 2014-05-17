@@ -462,10 +462,10 @@ class f1StreamSession( F1Session ):
         self.data_host          = self.theApp.config.get( 'host', 'data_addr' )
         self.data_port          = self.theApp.config.getint( 'host', 'data_port' )
 
-        self.LOGIN_URL          = self.theApp.config.get( 'host', 'login_url' )
-        self.REGISTER_URL       = self.theApp.config.get( 'host', 'register_url' )
-        self.KEY_URL_BASE       = self.theApp.config.get( 'host', 'key_url_base' )
-        self.KEYFRAME_URL_PREFIX= self.theApp.config.get( 'host', 'keyframe_url_prefix' )
+        self.LOGIN_URL          = self.theApp.config.get( 'urls', 'login_url' )
+        self.REGISTER_URL       = self.theApp.config.get( 'urls', 'register_url' )
+        self.KEY_URL_BASE       = self.theApp.config.get( 'urls', 'key_url_base' )
+        self.KEYFRAME_URL_PREFIX= self.theApp.config.get( 'urls', 'keyframe_url_prefix' )
        
         self.__COOKIE_VALUE     = None
         if self.theApp.config.has_section( 'keyframe' ):
