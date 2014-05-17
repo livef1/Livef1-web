@@ -131,7 +131,7 @@ class StreamReaderThread( ReaderThread ):
             #end if
         # end while
         self.log.warning( "%s: Exiting the THREAD" % ( self.Name ) )
-        exit()    
+        self.running = 0
         return
     # end def
 # end class 
@@ -139,15 +139,17 @@ class StreamReaderThread( ReaderThread ):
 class FileReaderThread( ReaderThread ):
     def __init__( self, name, theApp ):
         ReaderThread.__init__( self, name, theApp )
+        self.running = 0
         return
     # end def 
 
     def run( self ):
+        self.running = 1
         self.log.info( '%s: Live F1 FILE reader thread starting ...' % ( self.Name ) )
         self.Session = f1stream.f1FileSession( self.theApp, self.log, 'Qualifying-E007340' )            
         ReaderThread.run( self )
         self.log.warning( "%s: Exiting the THREAD" % ( self.Name ) )
-        exit()    
+        self.running = 0    
         return
     # end def
 # end class 

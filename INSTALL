@@ -10,10 +10,24 @@ To get the source from git
 
 Running the program
 
-    correct the livef1.conf with the correct location of the files.
+    Correct the userf1.conf with the correct location of the files.
     and run "python ./livef1.py"
 
     open a browser and type http://localhost:8080
+
+Running the capture program
+
+    For the capLiveF1.py is same is livef1.py and config file 
+    CaptureLiveF1.conf needs to be corrected as well (the 
+    same as userf1.conf)
+
+Running the test/replay program
+    
+    For testLiveF1.py you need to sync the username and password
+    between userf1.conf and testLiveF1.conf
+
+
+
 
 
     

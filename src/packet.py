@@ -1,18 +1,11 @@
-import copy
 from src.crypt      import F1Crypto
 from src.bytebuffer import ByteBuffer
-import logging
-import array
+from src.enum       import enum
+import logging      # for getLogger()
 
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
-
-def enum(*sequential, **named):
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    reverse = dict((value, key) for key, value in enums.iteritems())
-    enums['reverse_mapping'] = reverse
-    return type('Enum', (), enums)
 
 SYS         = enum( 'POSITION_UPDATE',
                     'EVENT_ID', 
@@ -84,9 +77,12 @@ class F1Packet( object ):
          
     def decode( self, buffer ):
         if buffer.size() < 2:
+            # All data is been read, so clear the buffer.
             buffer.clear()
             return True
-        self.log.debug( "Buffer size %i, index: %i" % ( buffer.length, buffer.index ) )            
+        # end if            
+        # self.log.debug( "Buffer size %i, index: %i" % ( buffer.length, buffer.index ) )            
+        # read the two header bytes
         b1              = buffer.readByte()
         b2              = buffer.readByte()           
         self.car        = ( b1 & 0x1F );
@@ -94,78 +90,100 @@ class F1Packet( object ):
         self.data       =  ( ( b2 & 0x0E ) >> 1 );
         self.length     =  ( ( b2 & 0xF0 ) >> 4 );
         self.value      =  ( ( b2 & 0xFE ) >> 1 );        
-        self.log.debug( "Header: (%02X,%02X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
-                            b1, b2, self.type, self.car, self.data, self.length, self.value ) )
+        #self.log.debug( "Header: (%02X,%02X), type: %i, car %i, data: %i, len: %i, value: %s" % ( 
+        #                    b1, b2, self.type, self.car, self.data, self.length, self.value ) )
+        # clearing the payload buffer
         self.payload.clear()
         decrypt = False                                    
         result  = True
+        # set the default for the packet type string
+        typeString = "Unhandled packet"
         if self.car == 0:
             if self.type == SYS.EVENT_ID:
+                typeString = "SYS.EVENT_ID"
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )
-                self.log.debug( "f1packet: SYS.EVENT_ID" )
             elif self.type == SYS.KEY_FRAME:
+                typeString = "SYS.KEY_FRAME"              
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )
-                self.log.debug( "f1packet: SYS.KEY_FRAME" )               
             elif self.type == SYS.VALID_MARKER:
-                self.log.debug( "f1packet: SYS.VALID_MARKER" )
+                typeString = "SYS.VALID_MARKER"
                 if not self.length == 0:
                     self.log.debug(  "Long valid marker" )
                 # end if          
-                self.payload.clear()
+                # read the payload
+
             elif self.type == SYS.REFRESH_RATE:
-                self.log.debug( "f1packet: SYS.REFRESH_RATE" )
-                self.payload.clear()      
+                typeString = "SYS.REFRESH_RATE"    
+                # read the payload
+
             elif self.type == SYS.TIMESTAMP:
-                self.log.debug( "f1packet: SYS.TIMESTAMP" )
+                typeString = "SYS.TIMESTAMP"
                 decrypt         = True
                 self.length     = 2
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )         
             elif self.type == SYS.WEATHER:
-                self.log.debug( "f1packet: SYS.WEATHER" )
+                typeString = "SYS.WEATHER"
                 if self.length < 15:
                     decrypt = True
+                    # read the payload
                     self.payload.Bytes = buffer.readBytes( self.length )       
                 # end if
             elif self.type == SYS.SPEED:
-                self.log.debug( "f1packet: SYS.SPEED" )
+                typeString = "SYS.SPEED"
                 decrypt = True
                 self.__SwapValueLength()
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )        
             elif self.type == SYS.TRACK_STATUS:
-                self.log.debug( "f1packet: SYS.TRACK_STATUS" )
+                typeString = "SYS.TRACK_STATUS"
                 decrypt = True
                 self.payload.Bytes = buffer.readBytes( self.length )       
             elif self.type == SYS.NOTICE:
+                typeString = "SYS.NOTICE"
                 self.__SwapValueLength()
-                self.log.debug( "f1packet: SYS.NOTICE" )
                 decrypt = True
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )       
             elif self.type == SYS.COPYRIGHT:
+                typeString = "SYS.COPYRIGHT"
                 self.__SwapValueLength()
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )       
-                self.log.debug( "f1packet: SYS.COPYRIGHT length = %i [%s]" % ( self.length, self.payload.String ) )
             elif self.type == SYS.COMMENTARY:
+                typeString = "SYS.COMMENTARY"
                 self.__SwapValueLength()
-                self.log.debug( "f1packet: SYS.COMMENTARY length = %i" % ( self.length ) )
+                # read the payload
                 self.payload.Bytes = buffer.readBytes( self.length )       
                 decrypt = True                                 
             else:
-                # unhandled packet type
-                self.log.error( "f1packet: Unhandled packet type %i" %  ( self.type ) )
+                # un-handled packet type                
                 result = False                                            
             # end if                                            
         else:
             if self.type == SYS.POSITION_HISTORY:
+                typeString = "POSITION_HISTORY"
                 decrypt = True               
                 self.__SwapValueLength()
                 if self.length:
+                    # read the payload
                     self.payload.Bytes = buffer.readBytes( self.length )                 
                 # end if
             elif not self.type == SYS.POSITION_UPDATE:
+                #
+                #   Depending on the event type car data packets have different 
+                #   meaning. See the CAR class for more information
+                #
+                typeString = "CAR_DATA_PACKET"
                 decrypt = True
                 if self.length:
+                    # read the payload
                     self.payload.Bytes = buffer.readBytes( self.length )
                 # end if
+            else:
+                typeString = "POSITION_UPDATE"                                
             # end if
         # end if
 
@@ -176,8 +194,8 @@ class F1Packet( object ):
             text = '"%s"' % self.payload.String
         else:
             text = '[%s]' % self.payload.Hex
-        self.log.debug( "Packet: (%02X,%02X) type: %i, car %i, data: %i, len: %i, value: %s, payload %s" % ( 
-                    b1, b2, self.type, self.car, self.data, self.length, self.value, text ) )
+        self.log.debug( "Packet: (%02X,%02X) type: %i (%s), car %i, data: %i, len: %i, value: %s, payload %s" % ( 
+                    b1, b2, self.type, typeString, self.car, self.data, self.length, self.value, text ) )
         return result
     # end def 
               

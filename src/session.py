@@ -516,16 +516,22 @@ class f1StreamSession( F1Session ):
         self.log.debug( "RESP: %s" % ( response ) )
         # self.log.debug( "DATA: %s" % ( content ) )
         if response[ 'status' ] == '200' or response[ 'status' ] == '302':
-            self.__cookie = response[ 'set-cookie' ]
-            C = Cookie.BaseCookie( self.__cookie )
-            for k, v in C.items():
-                if ( k == "USER" ): 
-                    self.__COOKIE_VALUE = v.value
-                # end if
-            # end for 
-            self.log.debug( "Cookie.USER = %s" % ( self.__COOKIE_VALUE ) )
-            return self.__COOKIE_VALUE
-        # endif
+            try:
+                self.__cookie = response[ 'set-cookie' ]
+                C = Cookie.BaseCookie( self.__cookie )
+                for k, v in C.items():
+                    if ( k == "USER" ): 
+                        self.__COOKIE_VALUE = v.value
+                    # end if
+                # end for 
+                self.log.debug( "Cookie.USER = %s" % ( self.__COOKIE_VALUE ) )
+                return self.__COOKIE_VALUE
+            except:
+                # Cookie problem
+                self.log.debug( "Cookie problem, response data [%s]" % ( response ) )
+                # self.log.debug( "Cookie problem, content data [%s]" % ( content ) )
+            # end try                                
+        # end if
         return ""
     # end def
 

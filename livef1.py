@@ -49,7 +49,8 @@ class F1LiveServer( object ):
         self.board          = GetBoard()
         self.commentary     = GetCommentary()
         self.config = ConfigParser.RawConfigParser()
-        self.config.read( config_file )
+        self.config_file    = config_file 
+        self.config.read( self.config_file )
         directory = os.path.join( os.path.dirname( __file__ ), self.config.get( 'log', 'dir' ) )
         if not os.path.exists( directory ):
             os.makedirs( directory )
@@ -66,35 +67,121 @@ class F1LiveServer( object ):
             
         self.log.info( 'Starting the application' )
         self.RefreshRate        = 5
+        self.autoRefresh        = True
         self.loadingKeyframe    = False
         self.interpolateNext    = False
+        self.location           = '/'
         self.readerThread       = StreamReaderThread( "live-reader", self )
         return
     # end constructor    
    
-    def header( self, title ):
-        interval = self.readerThread.Interval
-        return ( """<!DOCTYPE html><html><head><title>%s</title>
-                    <meta http-equiv='REFRESH' content='%i'>
-                    <link rel='stylesheet' type= 'text/css' href='/livef1.css' />
-                    <link rel='icon' type='image/ico' href='/images/favicon.ico'>
-                    <h2>%s</h2></head><body>""" % ( title, interval, title ) )
+    def header( self, title, interval = None ):
+        outp = """<!DOCTYPE html><html><head><title>%s</title>""" % ( title )
+        if self.autoRefresh and interval:
+            outp += "<meta http-equiv='REFRESH' content='%i'>" % ( interval )          
+        # end if                     
+        outp += """<link rel='stylesheet' type= 'text/css' href='/livef1.css' />
+                    <link rel='icon' type='image/ico' href='/images/favicon.ico'>"""
+        #outp += "<h2>%s</h2>" % ( title )
+        outp += "</head><body><div class='buttons'><ul><span></span>"
 
-    def trailer( self, trail ):
-	   return ( "<div class='trailer'><h3>LiveF1Web: Copyright 2014 by Marc Bertens, all rights reserved, Timing info: %s</h3></div></body></html>" % trail )
+        if self.readerThread: 
+            if self.readerThread.running == 0:
+                outp += "<li><a href='/startreader'>Start reader</a></li>"
+            else:
+                outp += "<li><a href='/stopreader'>Stop reader</a></li>"                
+            # end if                                
+        else:
+            # self.readerThread not created or destroyed            
+            exit() 
+        # end if
+        outp += "<li><a href='/logging'>Logging</a></li>"
+        outp += "<li><a href='/settings'>Settings</a></li>"
+        if self.autoRefresh:
+            outp += "<li><a href='/refresh?auto=False&location=%s'>Don't Refresh</a></li>" % ( self.location )        
+        else:            
+            outp += "<li><a href='/refresh?auto=True&location=%s'>Auto Refresh</a></li>" % ( self.location )
+
+        outp += "<li><a href='/comment'>Commentary</a></li>"        
+
+        outp += "<li><a href='/drivers'>Drivers</a></li>"
+
+        outp += "<li><a href='/'>Overview</a></li>"
+
+        outp += "<li><p class='status'>%s (%i)" % ( self.TrackStatus.EventStr, self.TrackStatus.EventId ) 
+        outp += "<li><p class='status'>Lap %i of %i" % ( self.TrackStatus.Lap, self.TrackStatus.NrOfLaps )
+        outp += "<li><p class='status'>Time left: %s" % ( self.TrackStatus.TimeLeft ) 
+        outp += "</ul></div>"
+        return outp
+    # end def
+                                        
+    def trailer( self, trail = None ):
+        outp = "<div class='trailer'><h3>LiveF1Web: Copyright 2014 by Marc Bertens, all rights reserved"
+        if trail:            	   
+            outp += ", Timing info: %s</h3></div></body></html>" % ( trail )
+        # end if
+        return outp
     # end def
         
     def index( self ):
-        yield self.header( "Live F1 Web - Timing" )
+        self.location           = '/'
+        yield self.header( "Live F1 Web - Timing", self.readerThread.Interval )
         yield self.board.gethtml( 'contents' )
-        yield self.TrackStatus.getHtml( 'status' )
+        #yield self.TrackStatus.getHtml( 'status' )
         yield self.commentary.gethtml( 'comment' ) 
         yield self.trailer( self.TrackStatus.Copyright )
     # end def
     index.exposed = True
 
+    def refresh( self, auto, location ):
+        self.autoRefresh = ( auto == 'True' )
+        raise cherrypy.HTTPRedirect( location )                 
+    # end if     
+    refresh.exposed = True
+     
+    def startreader( self ):
+        if self.readerThread: 
+            if self.readerThread.running == 0:
+                self.config.read( self.config_file )
+                self.readerThread       = None
+                self.readerThread       = StreamReaderThread( "live-reader", self )
+                self.autoRefresh        = True
+            # end if
+        # end if                     
+        raise cherrypy.HTTPRedirect('/' )                 
+    # end def
+    startreader.exposed = True 
+    
+    def stopreader( self ):
+        if self.readerThread: 
+            if self.readerThread.running == 1:
+                self.readerThread.join()
+                self.autoRefresh    = False
+            # end if
+        # end if                                                                        
+        raise cherrypy.HTTPRedirect('/' )                 
+    # end def
+    stopreader.exposed = True 
+
+    def settings( self ):
+        yield self.header( "Live F1 Web - Timing" )
+        yield "<div class='contents' style='width: 100%;'>"
+        yield "</div>"
+        yield self.trailer()
+        return
+    settings.exposed = True 
+
+    def logging( self ):
+        yield self.header( "Live F1 Web - Timing" )
+        yield "<div class='contents' style='width: 100%;'>"
+        yield "</div>"
+        yield self.trailer()
+        return
+    logging.exposed = True 
+        
     def drivers( self ):
-        yield self.header( "" ) 
+        self.location           = '/drivers'
+        yield self.header( "Live F1 Web - Timing", self.readerThread.Interval ) 
         #self.board.dump()
         yield self.board.gethtml( 'contents_wide' )
         yield self.trailer( self.TrackStatus.Copyright )
@@ -102,7 +189,8 @@ class F1LiveServer( object ):
     drivers.exposed = True
 
     def comment( self ):
-        yield self.header( "" )         
+        self.location           = '/comment'
+        yield self.header( "Live F1 Web - Timing", self.readerThread.Interval )         
         yield self.commentary.gethtml( 'comment_wide' )
         yield self.trailer( self.TrackStatus.Copyright )
         return
@@ -110,7 +198,8 @@ class F1LiveServer( object ):
     comment.exposed = True
     
     def status( self ):
-        yield self.header( "" )
+        self.location           = '/status'
+        yield self.header( "Live F1 Web - Timing", self.readerThread.Interval )
         yield self.TrackStatus.getHtml( 'status_wide' )
         yield self.trailer( self.TrackStatus.Copyright )      
     # end def

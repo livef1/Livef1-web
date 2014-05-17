@@ -13,3 +13,6 @@ Special thanks to the live-f1 project 'https://launchpad.net/live-f1'
 
 For showing the way of program logic.   
 
+17-05-2014: Added capture application
+            Added test/replay application
+ 

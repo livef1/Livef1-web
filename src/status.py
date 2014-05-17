@@ -182,6 +182,9 @@ class F1TrackStatus(object):
                                         self.__Message, 
                                         self.__NrOfLaps, 
                                         self.__Lap )  
+
+    def __getTimeLeft( self ):
+        return "1:43:23"     
            
     Status      = property( __getStatus,    __setStatus )
     Lap         = property( __getLap,       __setLap )
@@ -193,6 +196,8 @@ class F1TrackStatus(object):
     Copyright   = property( __getCopyright, __setCopyright )
     Notice      = property( __getNotice,    __setNotice )
     EventStr    = property( __getEventStr )
+    TimeLeft    = property( __getTimeLeft )
+    
 # end class
 
 status  = None  

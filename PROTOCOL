@@ -235,87 +235,140 @@ b   binary      0x00..0xFF
 i   integer     little endian encoded binary integer, unsigned.
 
 
+=============================================================================
 CAR_POSITION_UPDATE
--------------------
+-----------------------------------------------------------------------------
 
 
+
+=============================================================================
 CAR_POSITION_HISTORY
---------------------
+-----------------------------------------------------------------------------
 
 
-SYS_EVENT_ID    ( b[1], string[1..4] )
-------------
-b[1]    sub-type
-        0x02    race number ?
+
+=============================================================================
+SYS_EVENT_ID( sub-type, event )  
+-----------------------------------------------------------------------------
+This contains the event identification of the data being retrieved.
 
 
-SYS_KEY_FRAME   ( i[2] )
--------------
-i[2]    key frame number
+Field     | Type    | Length | Description
+----------+---------+--------+-----------------------------------------------
+sub-type  | Byte    | 1      | sub-type is one octet of identification of the 
+          |         |        | kind of data.
+----------+---------+--------+-----------------------------------------------
+event     | String  | 4..9   | event is a string which normaly contains four 
+          |         |        | digits, but on the starting of a event it 
+          |         |        | contents and underscore ('_') and date (CCYYMMDD) 
+----------+---------+--------+-----------------------------------------------
+
+    sub-type  | Content
+    ----------+--------------------------------------------------------------
+    0x02      | race number ?
+    ----------+--------------------------------------------------------------
+
+=============================================================================
+SYS_KEY_FRAME( frame )
+-----------------------------------------------------------------------------
+This contains the frame number where we are in data stream. On each receive 
+of this packet the decryption key is reset. The value is encoded is little 
+endian.
+
+Field     | Type    | Length | Description
+----------+---------+--------+-----------------------------------------------
+frame     | Word    | 2      | integer little endian, key frame number
+----------+---------+--------+-----------------------------------------------
 
 
+=============================================================================
 SYS_VALID_MARKER
-----------------
+-----------------------------------------------------------------------------
 No data, in offline timing.
 
 
-SYS_COMMENTARY  ( b[2], b[2], string[1..] )
---------------
+
+=============================================================================
+SYS_COMMENTARY  ( type, more, comment )
+-----------------------------------------------------------------------------
 This packet has two bytes for control and the rest of the packet is the text
 of the live commentary. This packet is encrypted.
 
-    Byte #1
-        0x01    means commentary text data
+Field     | Type    | Length | Description
+----------+---------+--------+-----------------------------------------------
+type      | Byte    | 1      | Type of comment
+----------+---------+--------+-----------------------------------------------
+more      | Byte    | 1      | More indicator 
+----------+---------+--------+-----------------------------------------------
+comment   | String  | 1..127 | The commentary text
+----------+---------+--------+-----------------------------------------------
 
-    Byte #2
-        0x00    more packets will follow
-        0x01    last commentary packet for this comment.
-
-    Byte #3....#n
-        The commentary text
+    type      | Content
+    ----------+--------------------------------------------------------------
+    0x01      | means commentary text data
+    ----------+--------------------------------------------------------------
 
 
+    more      | Content
+    ----------+--------------------------------------------------------------
+    0x00      | More packets will follow
+    ----------+--------------------------------------------------------------
+    0x01      | Last commentary packet for this comment.
+    ----------+--------------------------------------------------------------
+
+=============================================================================
 SYS_REFRESH_RATE
-----------------
+-----------------------------------------------------------------------------
 Has no data.....????
 
 
+=============================================================================
 SYS_NOTICE  (string, variable)
-----------
+-----------------------------------------------------------------------------
 The packet contains text data with a notification message. This packet is encrypted.
 
 
+=============================================================================
 SYS_TIMESTAMP   (binary, fixed, length = 2)
--------------
-Contains the timestamp in seconds from the 5 mins before the warm-up lap. The value is encoded is little endian.
+-----------------------------------------------------------------------------
+Contains the timestamp in seconds from the 5 mins before the warm-up lap. 
+The value is encoded is little endian.
 
 
-SYS_WEATHER
------------
 
+=============================================================================
+SYS_WEATHER( [ time ] )
+-----------------------------------------------------------------------------
+    data  | length    | content
+    ------+-----------+------------------------------------------------------
+    0     | 5         | <time>  (HH:MM ???)
+    
 
-SYS_SPEED   ((byte, string), variable)
----------
+=============================================================================
+SYS_SPEED( sub-type, string )
+-----------------------------------------------------------------------------
 This packet contains the information about the fastest lap. The packet has one byte for the sub-type. This packet is encrypted.
 
-    sub-type
-    --------
-    0x05    Driver number.
-    0x06    Driver name in a string.
-    0x07    Lap time in a string.
-    0x08    The lap number in a string.
+    sub-type  | Content
+    ----------+--------------------------------------------------------------
+    0x05      | Driver number.
+    0x06      | Driver name in a string.
+    0x07      | Lap time in a string.
+    0x08      | The lap number in a string.
 
 
 SYS_TRACK_STATUS    (character, fixed, length = 1)
---------------------------------------------------
+-----------------------------------------------------------------------------
 Contains one byte with the status. This packet is encrypted.
 
-    status
-    ------
-    0x31    ?
-    0x32    ?
+    status  | Content
+    --------+----------------------------------------------------------------
+    0x31    | ?
+    0x32    | ?
 
 
 SYS_COPYRIGHT   (string, variable)
-----------------------------------
+-----------------------------------------------------------------------------
 The packet contains text data with a copyright message. This packet is in plain text.
+
+
