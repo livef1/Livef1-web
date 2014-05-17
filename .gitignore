@@ -1,5 +1,7 @@
 *.pyc
 *.log
 *.*~
-log_*
-keyframe_*
+old/
+log/
+keyframe/
+

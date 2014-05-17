@@ -25,18 +25,15 @@
 #
 #   For showing the way of program logic.   
 #
+import logging
 import time
 import datetime
-import globalvar
-import logging
 
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
 
-log  = logging.getLogger( 'live-f1' )
-
-class f1text( object ):
+class F1Text( object ):
     def __init__( self, ts = 0, c = '', t = '' ):
         self.timestamp   = ts
         self.clock       = c
@@ -49,9 +46,10 @@ class f1text( object ):
         self.text        = ""  
         return
                 
-class f1commentary( object ):  
-    def __init__( self ):
-        self.lines = []
+class F1Commentary( object ):  
+    def __init__( self, log ):
+        self.lines  = []
+        self.log    = log
         return 
 
     def reset( self ):
@@ -71,8 +69,8 @@ class f1commentary( object ):
         return """<div class="%s"><table>%s</table></div>""" % ( div_tag_name, output )
         
     def append( self, new ):
-        #log.info( "Commentary.time : %i" % ( new.timestamp ) )
-        #log.info( "Commentary.text : %s" % ( new.text ) )
+        #self.log.info( "Commentary.time : %i" % ( new.timestamp ) )
+        #self.log.info( "Commentary.text : %s" % ( new.text ) )
         if not new.clock:
             secs = new.timestamp % 60
             mins = new.timestamp // 60
@@ -83,12 +81,22 @@ class f1commentary( object ):
             # endif
             # add time stamp
             new.clock = "%02i:%02i" % ( hours, mins ) 
-        self.lines.append( f1text( new.timestamp, new.clock, new.text ) )
+        self.lines.append( F1Text( new.timestamp, new.clock, new.text ) )
         return
     
     def dump( self ):
         for elem in self.lines:        
-            log.info( "Commentary : %s" % ( elem.text ) )
+            self.log.info( "Commentary : %s" % ( elem.text ) )
         # next
         return         
+
+comment = None
+
+def GetCommentary():
+    global comment
+    if comment == None:
+        comment = F1Commentary( logging.getLogger( 'live-f1' ) )
+    return comment
+# end def             
+
         

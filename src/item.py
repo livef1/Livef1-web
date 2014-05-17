@@ -26,14 +26,14 @@
 #   For showing the way of program logic.   
 #
 import logging
-log  = logging.getLogger('live-f1')
 
-class f1Item( object ):
+class F1Item( object ):
     def __init__( self, _name, _value = '', _data = 0 ):
         self.__data     = _data
         self.__value    = _value
         self.__name     = _name
-        return;
+        self.log        = logging.getLogger('live-f1')
+        return
     # end def
     
     def __getData( self ):

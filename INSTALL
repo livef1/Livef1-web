@@ -2,6 +2,7 @@ Livef1-web needs Python version 2.7.x and the following modules;
 * Python 2.7.4
 * httplib2-0.9
 * CherryPy-3.3.0
+* enum34
 
 To get the source from git
 

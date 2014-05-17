@@ -26,26 +26,30 @@
 #
 #   For showing the way of program logic.   
 #
-import globalvar
 import os
-import thread
+import cherrypy
 import logging
 import ConfigParser
 from logging import handlers
-import cherrypy
-import f1reader
-from f1status import f1TrackStatus
+
+from src.reader import StreamReaderThread
+
+from src.status import GetTrackStatus
+from src.drivers import GetBoard
+from src.comment import GetCommentary
 
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
 
-log  = logging.getLogger('live-f1')
-
-class f1live( object ):
-    def __init__( self ):
+class F1LiveServer( object ):
+    def __init__( self, config_file ):
+        self.log  = logging.getLogger('live-f1')
+        self.TrackStatus    = GetTrackStatus()
+        self.board          = GetBoard()
+        self.commentary     = GetCommentary()
         self.config = ConfigParser.RawConfigParser()
-        self.readConfig()
+        self.config.read( config_file )
         directory = os.path.join( os.path.dirname( __file__ ), self.config.get( 'log', 'dir' ) )
         if not os.path.exists( directory ):
             os.makedirs( directory )
@@ -54,33 +58,27 @@ class f1live( object ):
                                                         maxBytes=self.config.getint( 'log', 'size' ), 
                                                         backupCount=self.config.getint( 'log', 'backup' ) )
 
-        log.addHandler( file_log_handler )
+        self.log.addHandler( file_log_handler )
         # nice output format
         formatter = logging.Formatter( '%(asctime)s - %(module)s - %(levelname)s - %(message)s' )
         file_log_handler.setFormatter( formatter )
-        log.setLevel( self.config.getint( 'log', 'level' ) )    
-        log.info( 'Starting the application' )
+        self.log.setLevel( self.config.getint( 'log', 'level' ) )
+            
+        self.log.info( 'Starting the application' )
         self.RefreshRate        = 5
         self.loadingKeyframe    = False
         self.interpolateNext    = False
-        thread.start_new( f1reader.Reader, ( self, ) )
+        self.readerThread       = StreamReaderThread( "live-reader", self )
         return
     # end constructor    
-    
-    def readConfig( self ):
-        self.config.read( 'userf1.conf' )
-        return
-            
-    def writeConfig( self ):
-        self.config.write( 'userf1.conf' )
-        return
-    
+   
     def header( self, title ):
+        interval = self.readerThread.Interval
         return ( """<!DOCTYPE html><html><head><title>%s</title>
                     <meta http-equiv='REFRESH' content='%i'>
                     <link rel='stylesheet' type= 'text/css' href='/livef1.css' />
                     <link rel='icon' type='image/ico' href='/images/favicon.ico'>
-                    <h2>%s</h2></head><body>""" % ( title, 1, title ) )
+                    <h2>%s</h2></head><body>""" % ( title, interval, title ) )
 
     def trailer( self, trail ):
 	   return ( "<div class='trailer'><h3>LiveF1Web: Copyright 2014 by Marc Bertens, all rights reserved, Timing info: %s</h3></div></body></html>" % trail )
@@ -88,34 +86,33 @@ class f1live( object ):
         
     def index( self ):
         yield self.header( "Live F1 Web - Timing" )
-        yield globalvar.board.gethtml( 'contents' )
-        yield globalvar.TrackStatus.getHtml( 'status' )
-        yield globalvar.commentary.gethtml( 'comment' ) 
-        yield self.trailer( globalvar.TrackStatus.Copyright )
+        yield self.board.gethtml( 'contents' )
+        yield self.TrackStatus.getHtml( 'status' )
+        yield self.commentary.gethtml( 'comment' ) 
+        yield self.trailer( self.TrackStatus.Copyright )
     # end def
     index.exposed = True
 
-    def time( self ):
+    def drivers( self ):
         yield self.header( "" ) 
-        #globalvar.board.dump()
-        yield globalvar.board.gethtml( 'contents_wide' )
-        yield self.trailer( globalvar.TrackStatus.Copyright )
+        #self.board.dump()
+        yield self.board.gethtml( 'contents_wide' )
+        yield self.trailer( self.TrackStatus.Copyright )
     # end def
-
-    time.exposed = True
+    drivers.exposed = True
 
     def comment( self ):
         yield self.header( "" )         
-        yield globalvar.commentary.gethtml( 'comment_wide' )
-        yield self.trailer( globalvar.TrackStatus.Copyright )
+        yield self.commentary.gethtml( 'comment_wide' )
+        yield self.trailer( self.TrackStatus.Copyright )
         return
     # end def
     comment.exposed = True
     
     def status( self ):
         yield self.header( "" )
-        yield globalvar.TrackStatus.getHtml( 'status_wide' )
-        yield self.trailer( globalvar.TrackStatus.Copyright )      
+        yield self.TrackStatus.getHtml( 'status_wide' )
+        yield self.trailer( self.TrackStatus.Copyright )      
     # end def
     status.exposed = True
         
@@ -139,7 +136,7 @@ class f1live( object ):
             # endif                
             cnt = cnt + 1
             if ( cnt == 16 ):
-                log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )
+                self.log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )
                 hexstr  = ''
                 ascii   = ''
                 cnt     = 0
@@ -147,15 +144,26 @@ class f1live( object ):
             # endif
         # next
         if 0:
-            log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )                            
+            self.log.debug( "%04X: %s | %s" % ( idx, hexstr, ascii ) )                            
         # endif
         return 
     # end def 
-#end class
-    
-# cherrypy needs an absolute path to deal with static data
-globalvar.theApp    = f1live()
-globalvar.TrackStatus = f1TrackStatus()
+# end class
 
-cherrypy.quickstart( globalvar.theApp, '/', config = os.path.join( os.path.join( os.getcwd(), 
+# cherrypy needs an absolute path to deal with static data
+
+theApp        = F1LiveServer( 'userf1.conf' )
+# theApp        = F1LiveServer( 'testLiveF1.conf' )
+"""
+    This is to stop the reader thread
+"""      
+def StopReaderThread():
+    theApp.readerThread.join()
+    return
+# end if    
+
+StopReaderThread.priority = 10
+cherrypy.engine.subscribe( 'stop', StopReaderThread )
+
+cherrypy.quickstart( theApp, '/', config = os.path.join( os.path.join( os.getcwd(), 
                                             os.path.dirname( __file__ ) ), 'livef1.conf' ) )

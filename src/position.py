@@ -25,35 +25,33 @@
 #
 #   For showing the way of program logic.   
 #
-import globalvar
-from f1item import f1Item
-from f1status import f1TrackStatus
 import logging
+from src.item import F1Item
+from src.packet import EVENT
 
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
 
-log  = logging.getLogger('live-f1')
-
-class f1Position( object ):
+class F1Position( object ):
     def __init__( self ):
         self.reset()
+        self.log  = logging.getLogger('live-f1')
         return
     # end def
 
     def reset( self ):
-        self.__position         = f1Item( 'car_position', 0 )
-        self.__number           = f1Item( 'driver_number', 0 )
-        self.__name             = f1Item( 'driver_name' )
-        self.__interval         = f1Item( 'interval' )
-        self.__laptime          = f1Item( 'laptime' )
-        self.__sector           = [ f1Item( 'sector1' ), f1Item( 'sector2' ), f1Item( 'sector3' ) ]
-        self.__lap              = f1Item( 'driver_lap' )
-        self.__gap              = f1Item( 'gap' )
-        self.__stops            = f1Item( 'stops', 0 )
-        self.__pitLap           = [ f1Item( 'pitlap1' ), f1Item( 'pitlap2' ), f1Item( 'pitlap3' ) ]
-        self.__period           = [ f1Item( 'q1' ), f1Item( 'q2' ), f1Item( 'q3' ) ]
+        self.__position         = F1Item( 'car_position', 0 )
+        self.__number           = F1Item( 'driver_number', 0 )
+        self.__name             = F1Item( 'driver_name' )
+        self.__interval         = F1Item( 'interval' )
+        self.__laptime          = F1Item( 'laptime' )
+        self.__sector           = [ F1Item( 'sector1' ), F1Item( 'sector2' ), F1Item( 'sector3' ) ]
+        self.__lap              = F1Item( 'driver_lap' )
+        self.__gap              = F1Item( 'gap' )
+        self.__stops            = F1Item( 'stops', 0 )
+        self.__pitLap           = [ F1Item( 'pitlap1' ), F1Item( 'pitlap2' ), F1Item( 'pitlap3' ) ]
+        self.__period           = [ F1Item( 'q1' ), F1Item( 'q2' ), F1Item( 'q3' ) ]
         return 
     # end def
 
@@ -69,7 +67,7 @@ class f1Position( object ):
 
     def setNumber( self, data, number ):
         if self.__number.data == 4 and self.__number.data != data:
-            if event == f1TrackStatus.RACE_EVENT:
+            if event == EVENT.RACE_EVENT:
                 # Driver was in the pit 
                 self.__stops.data   = data
                 self.__stops.value  += 1
@@ -181,19 +179,19 @@ class f1Position( object ):
     def gethtml( self, event ):
         output = '''<tr>%s%s%s''' % ( self.__position.getHtml(), self.__number.getHtml(),
                                         self.__name.getHtml() )                           
-        if event == f1TrackStatus.RACE_EVENT:
+        if event == EVENT.RACE_EVENT:
             output = output + '''%s %s %s %s %s %s %s''' % (
                                     self.__laptime.getHtml(),       self.__interval.getHtml(),
                                     self.__gap.getHtml(),           self.__sector[ 0 ].getHtml(),  
                                     self.__sector[ 1 ].getHtml(),   self.__sector[ 2 ].getHtml(),  
                                     self.__lap.getHtml() )            
 
-        elif event == f1TrackStatus.PRACTICE_EVENT:
+        elif event == EVENT.PRACTICE_EVENT:
             output = output + '''%s %s %s %s %s''' % (    
                                     self.__laptime.getHtml(),       self.__sector[ 0 ].getHtml(),  
                                     self.__sector[ 1 ].getHtml(),   self.__sector[ 2 ].getHtml(),  
                                     self.__lap.getHtml() )   
-        elif event == f1TrackStatus.QUALIFYING_EVENT: 
+        elif event == EVENT.QUALIFYING_EVENT: 
             output = output + '''%s %s %s %s %s %s %s''' % (
                                     self.__period[ 0 ].getHtml(),   self.__period[ 1 ].getHtml(),
                                     self.__period[ 2 ].getHtml(),   self.__sector[ 0 ].getHtml(),

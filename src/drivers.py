@@ -25,17 +25,15 @@
 #
 #   For showing the way of program logic.   
 #
-import globalvar
-import re
-from f1position import f1Position
-from f1status import f1TrackStatus
 import logging
+import re
+from src.position import F1Position
+from src.packet import EVENT
+from src.status import GetTrackStatus
 
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
-
-log  = logging.getLogger('live-f1')
 
 def isprint( _str ):
     for x in _str:
@@ -77,24 +75,27 @@ def issector( _sect ):
     # end if
     return isnumber( _sect )
 
-class f1Board( object ):
+class F1Board( object ):
     def __init__( self ):
+        self.log  = logging.getLogger('live-f1')
+        self.TrackStatus    = GetTrackStatus()
         self.__cars = []
-        self.__fastest = f1Position()
+        self.__fastest = F1Position()
         # create 32 cars 
         self.__maxCars = 0
         self.currentLap = 0
         self.Event      = 1
         self.__index    = []
         for i in range( 32 ):
-            self.__cars.append( f1Position() )
+            self.__cars.append( F1Position() )
             self.__index.append( [ 0, 0 ] )
         return
        
     def updateMaxCars( self, car ):
         if car > self.__maxCars:
             self.__maxCars = car
-        log.info( "max CARS %i" % self.__maxCars ) 
+            self.log.info( "max CARS %i" % self.__maxCars )
+        # end if             
         self.UpdateTable()
         # end if
         return 
@@ -106,7 +107,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setNumber( data, number )
             return 0      
-        log.error( "setDriverNo not a number [%s]" % ( number ))                   
+        self.log.error( "setDriverNo not a number [%s]" % ( number ))                   
         return 1
 
     def setDriverPosition( self, car, data, number ):
@@ -115,10 +116,10 @@ class f1Board( object ):
         if number.isdigit():
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPosition( data, number )
-            log.info( "LAP setting position %i for car %i" % ( int( number ), car ) )
+            # log.info( "LAP setting position %i for car %i" % ( int( number ), car ) )
             self.__index[ int( number ) ] = [ car, int( number ) ]
             return 0 
-        log.error( "setDriverPosition not a number [%s]" % ( number ))                          
+        self.log.error( "setDriverPosition not a number [%s]" % ( number ))                          
         return 1
         
     def setDriverName( self, car, data, name ):
@@ -128,7 +129,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setName( data, name )
             return 0
-        log.error( "setDriverName not a printable string [%s]" % ( name ))                          
+        self.log.error( "setDriverName not a printable string [%s]" % ( name ))                          
         return 1
     
     def setDriverInterval( self, car, data, intr ):
@@ -148,7 +149,7 @@ class f1Board( object ):
                 self.__cars[ car-1 ].setInterval( data, intr )                                            
             # end if
             return 0  
-        log.error( "setDriverInterval not a number string [%s]" % ( intr ))                         
+        self.log.error( "setDriverInterval not a number string [%s]" % ( intr ))                         
         return 1       
 
     def setDriverGap( self, car, data, gap ):
@@ -159,7 +160,7 @@ class f1Board( object ):
             self.__cars[ car-1 ].setGap( data, gap )
             self.UpdateTable()        
             return 0
-        log.error( "setDriverGap not a number string [%s]" % ( gap ))                 
+        self.log.error( "setDriverGap not a number string [%s]" % ( gap ))                 
         return 1                    
 
     def setDriverLaptime( self, car, data, laptime ):
@@ -169,17 +170,15 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLaptime( data, laptime )        
             return 0
-        log.error( "setDriverLaptime not a time string [%s]" % ( laptime ) )        
+        self.log.error( "setDriverLaptime not a time string [%s]" % ( laptime ) )        
         return 1        
 
     def setDriverSector( self, car, data, sect, secttime ):
-        if not secttime:
-            return 0
-        if issector( secttime ):
+        if issector( secttime ) or len( secttime ) == 0 or secttime == 'STOP':
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setSector( sect, data, secttime )        
             return 0
-        log.error( "setDriverSector not a sector string [%s]" % ( secttime ) )        
+        self.log.error( "setDriverSector not a sector string [%s]" % ( secttime ) )        
         return 1        
         
     def setDriverPitLap( self, car, data, pit, secttime ):
@@ -196,7 +195,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setPeriod( data, period, time )        
             return 0
-        log.error( "setDriverPeriod not a sector string [%s]" % ( time ) )            
+        self.log.error( "setDriverPeriod not a sector string [%s]" % ( time ) )            
         return 1        
         
     def setDriverLap( self, car, data, lap ):
@@ -206,7 +205,7 @@ class f1Board( object ):
             self.updateMaxCars( car )
             self.__cars[ car-1 ].setLap( data, lap )        
             return 0
-        log.error( "setDriverLap not a number [%s]" % ( lap ) )     
+        self.log.error( "setDriverLap not a number [%s]" % ( lap ) )     
         return 1    
         
     def setFastestDriverNo( self, car, data, number ):
@@ -240,7 +239,7 @@ class f1Board( object ):
         return 0.0
 
     def UpdateTable( self ):
-        #log.info( "Update Table LAP" )
+        #self.log.info( "Update Table LAP" )
         """
             All this is fussy-logic to restore the items the live timing interface no longer supplies 
         """
@@ -258,7 +257,7 @@ class f1Board( object ):
                     prevrec = self.__cars[ prev ] 
                 else:
                     prevrec = None                                                      
-                log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
+                self.log.info( "Update LAP car %i, pos %i, name: %s" % ( car, pos, self.__cars[ car-1 ].getName().value ) )
                 curr_rec = self.__cars[ car-1 ] 
                 value = curr_rec.getInterval()                 
                 if not value.value == '' and not 'L' in value.value:                
@@ -297,8 +296,8 @@ class f1Board( object ):
         return
         
     def dump( self ):
-        log.info( "---------------------------------------------" )
-        log.info( "maxCars : %i" % self.__maxCars ) 
+        self.log.info( "---------------------------------------------" )
+        self.log.info( "maxCars : %i" % self.__maxCars ) 
         for x in range( self.__maxCars ):
             for y in range( self.__maxCars ):
                 item = self.__cars[ y ]
@@ -322,17 +321,17 @@ class f1Board( object ):
                         if ( item.getPeriod( 0 ).value ):
                             line = line + ", per: (%s,%s,%s)" % ( item.getPeriod( 0 ).value,
                                                         item.getPeriod( 1 ).value, item.getPeriod( 2 ).value );
-                        log.info( line )
+                        self.log.info( line )
                     # end if
                 # end if
             # end for
         # end for
-        log.info( "fastest: nr: %-3s, name: %-13s, lap: %s, time: %s" % (
+        self.log.info( "fastest: nr: %-3s, name: %-13s, lap: %s, time: %s" % (
                         self.__fastest.getNumber().value,
                         self.__fastest.getName().value,
                         self.__fastest.getLap().value,
                         self.__fastest.getLaptime().value ) )
-        log.info( "---------------------------------------------" )        
+        self.log.info( "---------------------------------------------" )        
         return
        
                   
@@ -341,7 +340,7 @@ class f1Board( object ):
 			         <th class="car_position" id="head_color">Pos.</th>
 			         <th class="driver_number" id="head_color">Nr.</th>
 			         <th class="driver_name" id="head_color">Driver</th>''' % ( div_tag_name )
-        if globalvar.TrackStatus.Event == f1TrackStatus.RACE_EVENT:
+        if self.TrackStatus.Event == EVENT.RACE_EVENT:
             output = output + '''<th class="laptime" id="head_color">Lap Time</th>
                                  <th class="interval" id="head_color">Int</th>
                                  <th class="gap" id="head_color">Gap</th>
@@ -349,13 +348,13 @@ class f1Board( object ):
 			                     <th class="sector1" id="head_color">Sec #2</th>
 			                     <th class="sector1" id="head_color">Sec #3</th>
     		                     <th class="driver_lap" id="head_color">Lap</th>'''
-        elif globalvar.TrackStatus.Event == f1TrackStatus.PRACTICE_EVENT:
+        elif self.TrackStatus.Event == EVENT.PRACTICE_EVENT:
             output = output + '''<th class="laptime" id="head_color">Lap Time</th>
 			                     <th class="sector1" id="head_color">Sec #1</th>
 			                     <th class="sector1" id="head_color">Sec #2</th>
 			                     <th class="sector1" id="head_color">Sec #3</th>		                     
     		                     <th class="driver_lap" id="head_color">Lap</th>'''
-        elif globalvar.TrackStatus.Event == f1TrackStatus.QUALIFYING_EVENT:
+        elif self.TrackStatus.Event == EVENT.QUALIFYING_EVENT:
             output = output + '''<th class="q1" id="head_color">Q1</th>
                                  <th class="q2" id="head_color">Q2</th>
                                  <th class="q3" id="head_color">Q3</th>
@@ -364,21 +363,33 @@ class f1Board( object ):
 			                     <th class="sector3" id="head_color">Sec #3</th>
     		                     <th class="driver_lap" id="head_color">Lap</th>'''
         else: 
-            output = output + '''UNKNOWN EVENT TYPE !!!! %i''' % ( globalvar.TrackStatus.EventType )
-        #endif
+            output = output + '''UNKNOWN EVENT TYPE !!!! %i''' % ( self.TrackStatus.Event )
+        # end if
         output = output + "</thead><tbody>"            
         # log.info( "cars : %s" % ( cnt ) ) 
         for pos in range( 1, self.__maxCars ):
             for item in self.__cars:
                 if int( item.getPosition().value ) == pos:
-                    output = output + item.gethtml( globalvar.TrackStatus.Event ) 
-                # endif
+                    output = output + item.gethtml( self.TrackStatus.Event ) 
+                # end if
             # next
         # next
         output = output + """</tbody></table>"""
-        if globalvar.TrackStatus.Event == f1TrackStatus.RACE_EVENT:
+        if self.TrackStatus.Event == EVENT.RACE_EVENT:
             output = output + self.__fastest.getHtmlFastest()
             output = output + """</tbody></table></div>"""
-        # endif                  
+        # end if                  
         output = output + "</div>"   
         return output
+    # end def
+# end class  
+
+board = None
+
+def GetBoard():
+    global board
+    if board == None:
+        board   = F1Board()
+    # end if
+    return board          
+   

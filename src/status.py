@@ -25,27 +25,16 @@
 #
 #   For showing the way of program logic.   
 #
-import globalvar
 import logging
-
+from src.packet import EVENT
+from src.packet import FLAGS  
 __version__ = "0.1"
 __applic__  = "Live F1 Web"
 __author__  = "Marc Bertens"
 
 log  = logging.getLogger('live-f1')
 
-class f1TrackStatus(object):
-    RACE_EVENT             = 1
-    PRACTICE_EVENT         = 2
-    QUALIFYING_EVENT       = 3
-        
-    GREEN_FLAG             = 1
-    YELLOW_FLAG            = 2   
-    SAFETY_CAR_STANDBY     = 3
-    SAFETY_CAR_DEPLOYED    = 4
-    RED_FLAG               = 5
-    LAST_FLAG              = 6
-
+class F1TrackStatus(object):
     statusFlags     = { 1: "Green",     2: "Yellow",    3: "Yellow", 
                         4: "Yellow",    5: "Red flag",  6: "Finished" }
                         
@@ -61,12 +50,12 @@ class f1TrackStatus(object):
     # end def
 
     def reset( self ):
-        self.__Status           = self.GREEN_FLAG
+        self.__Status           = FLAGS.GREEN_FLAG
         self.__NrOfLaps         = 0
         self.__Lap              = 0
         self.__Message          = ""
-        self.__Event            = self.RACE_EVENT
-        self.__Flag             = self.GREEN_FLAG
+        self.__Event            = EVENT.RACE_EVENT
+        self.__Flag             = FLAGS.GREEN_FLAG
         self.__epoch_time       = 0
         self.__remaining_time   = 0
         self.__event_id         = 0
@@ -79,7 +68,7 @@ class f1TrackStatus(object):
     # end def
         
     def __setStatus( self, val ):
-        if ( val < self.GREEN_FLAG or val > self.LAST_FLAG ):
+        if ( val < FLAGS.GREEN_FLAG or val > FLAGS.LAST_FLAG ):
             log.warning( "Invalid status set %i" % val )
             return            
         #endif
@@ -140,7 +129,7 @@ class f1TrackStatus(object):
     # end def
         
     def __setEvent( self, val ):
-        if ( val < self.RACE_EVENT or val > self.QUALIFYING_EVENT ):
+        if ( val < EVENT.RACE_EVENT or val > EVENT.QUALIFYING_EVENT ):
             log.warning( "Invalid event set %i" % val )
             return        
         self.__Event = val
@@ -161,7 +150,7 @@ class f1TrackStatus(object):
     # end def
         
     def __setFlag( self, val ):
-        if ( val < self.GREEN_FLAG or val > self.LAST_FLAG ):
+        if ( val < FLAGS.GREEN_FLAG or val > FLAGS.LAST_FLAG ):
             log.warning( "Invalid flag set %i" % val )
             return            
         self.__Flag = val
@@ -175,7 +164,7 @@ class f1TrackStatus(object):
                                 <td width="30%%">%i</td>
                                 <td align="right" width="30%%">00:00:00</td>
                              </tr>''' % ( self.events[ self.__Event ], self.__event_id )
-        if self.__Event == self.RACE_EVENT:
+        if self.__Event == EVENT.RACE_EVENT:
             output = output + '''<tr>
                                     <td>Lap</td>
                                     <td>%i</td>
@@ -204,4 +193,13 @@ class f1TrackStatus(object):
     Copyright   = property( __getCopyright, __setCopyright )
     Notice      = property( __getNotice,    __setNotice )
     EventStr    = property( __getEventStr )
+# end class
 
+status  = None  
+
+def GetTrackStatus():
+    global status
+    if status == None:
+        status  = F1TrackStatus()             
+    return status 
+# end if    
